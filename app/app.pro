@@ -194,6 +194,7 @@ SOURCES += \
     streaming/input/reltouch.cpp \
     streaming/session.cpp \
     streaming/audio/audio.cpp \
+    streaming/audio/micencoder.cpp \
     streaming/audio/renderers/sdlaud.cpp \
     gui/computermodel.cpp \
     gui/appmodel.cpp \
@@ -231,6 +232,8 @@ HEADERS += \
     settings/microphonedevices.h \
     streaming/input/input.h \
     streaming/session.h \
+    streaming/audio/micencoder.h \
+    streaming/audio/micring.h \
     streaming/audio/renderers/renderer.h \
     streaming/audio/renderers/sdl.h \
     gui/computermodel.h \
