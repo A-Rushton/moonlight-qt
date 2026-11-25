@@ -104,6 +104,24 @@ void MicEchoCanceller::setStreamDelayMs(int ms)
     }
 }
 
+bool MicEchoCanceller::statistics(Stats& out)
+{
+    if (!mImpl) {
+        return false;
+    }
+
+    const webrtc::AudioProcessingStats stats = mImpl->apm->GetStatistics();
+    out = Stats();
+    if (stats.delay_ms) {
+        out.delayMs = *stats.delay_ms;
+    }
+    out.erl = stats.echo_return_loss;
+    out.erle = stats.echo_return_loss_enhancement;
+    out.divergentFraction = stats.divergent_filter_fraction;
+    out.residualEchoMax = stats.residual_echo_likelihood_recent_max;
+    return true;
+}
+
 #else
 
 struct MicEchoCanceller::Impl {};
@@ -122,5 +140,6 @@ bool MicEchoCanceller::active() const { return false; }
 void MicEchoCanceller::processReverse(const float*) {}
 void MicEchoCanceller::processCapture(float*) {}
 void MicEchoCanceller::setStreamDelayMs(int) {}
+bool MicEchoCanceller::statistics(Stats&) { return false; }
 
 #endif

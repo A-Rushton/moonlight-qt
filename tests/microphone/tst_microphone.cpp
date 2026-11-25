@@ -261,6 +261,13 @@ private slots:
         double erle = 10.0 * std::log10(inEnergy / std::max(outEnergy, 1e-20));
         qInfo("ERLE %.2f dB", erle);
         QVERIFY2(erle >= 20.0, qPrintable(QString::number(erle)));
+
+        MicEchoCanceller::Stats stats;
+        QVERIFY(aec.statistics(stats));
+        QVERIFY(stats.delayMs.has_value());
+        QVERIFY(stats.erle.has_value());
+        QVERIFY(*stats.delayMs >= 0);
+        qInfo("AEC3 delay %d ms, ERLE %.1f dB", *stats.delayMs, *stats.erle);
     }
 
     void nearEndPreserved()
@@ -309,6 +316,9 @@ private slots:
         aec.processReverse(frame.data());
         aec.processCapture(frame.data());
         QCOMPARE(std::memcmp(frame.data(), copy.data(), FRAME * sizeof(float)), 0);
+
+        MicEchoCanceller::Stats stats;
+        QVERIFY(!aec.statistics(stats));
     }
     void downmixLayouts()
     {
@@ -404,6 +414,31 @@ private slots:
         std::vector<float> frame(FRAME);
         QVERIFY(feeder.popFrame(frame.data()));
         QCOMPARE(frame, ramp(pushed - 4 * FRAME, FRAME));
+    }
+
+    void farEndCountersTrackEvents()
+    {
+        MicFarEndFeeder feeder;
+        std::vector<float> frame(FRAME);
+
+        QVERIFY(!feeder.popFrame(frame.data()));
+        std::vector<float> in = ramp(0, 12 * FRAME + 100);
+        feeder.push(in.data(), in.size());
+        QVERIFY(feeder.popFrame(frame.data()));
+        QVERIFY(feeder.popFrame(frame.data()));
+        QCOMPARE(feeder.depth(), size_t(2 * FRAME));
+
+        MicFarEndFeeder::Counters c = feeder.takeCounters();
+        QCOMPARE(c.frames, uint64_t(3));
+        QCOMPARE(c.starved, uint64_t(1));
+        QCOMPARE(c.trims, uint64_t(1));
+        QCOMPARE(c.trimmedSamples, uint64_t(12 * FRAME + 100 - 4 * FRAME));
+
+        c = feeder.takeCounters();
+        QCOMPARE(c.frames, uint64_t(0));
+        QCOMPARE(c.starved, uint64_t(0));
+        QCOMPARE(c.trims, uint64_t(0));
+        QCOMPARE(c.trimmedSamples, uint64_t(0));
     }
 
     void farEndJitterIsAbsorbed()

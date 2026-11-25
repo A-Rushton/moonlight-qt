@@ -107,7 +107,8 @@ public:
     }
 
     // Consumer side: drops all but the newest keepSamples unread samples
-    void discardTo(size_t keepSamples) noexcept
+    // Returns the number of samples discarded
+    size_t discardTo(size_t keepSamples) noexcept
     {
         const uint64_t r = mRead.load(std::memory_order_relaxed);
         const uint64_t w = mWritten.load(std::memory_order_acquire);
@@ -115,11 +116,12 @@ public:
             keepSamples = mCapacity;
         }
         if (w - r <= keepSamples) {
-            return;
+            return 0;
         }
 
         mRead.store(w - keepSamples, std::memory_order_release);
         mDropped.fetch_add(w - keepSamples - r, std::memory_order_release);
+        return static_cast<size_t>(w - keepSamples - r);
     }
 
     size_t available() const noexcept

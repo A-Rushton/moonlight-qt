@@ -5,12 +5,14 @@
 #include <Limelight.h>
 
 #include <chrono>
+#include <optional>
 #include <system_error>
 
 namespace {
 
 constexpr size_t kRingSamples = MicEncoder::SampleRate / 5;
 constexpr int kInitialEchoDelayMs = 60;
+constexpr Uint32 kEchoStatsIntervalMs = 5000;
 
 // Windows reports a privacy-blocked microphone as a device that only
 // delivers digital silence
@@ -20,6 +22,16 @@ constexpr bool kDetectBlockedCapture = true;
 constexpr bool kDetectBlockedCapture = false;
 #endif
 constexpr uint64_t kBlockedCaptureSamples = 3 * MicEncoder::SampleRate;
+
+template <typename T>
+const char* formatOptional(char (&buf)[16], const std::optional<T>& value, const char* format)
+{
+    if (!value) {
+        return "n/a";
+    }
+    SDL_snprintf(buf, sizeof(buf), format, *value);
+    return buf;
+}
 
 bool captureDeviceExists(const QString& name)
 {
@@ -364,6 +376,27 @@ void SDLCALL MicrophoneStream::captureCallback(void* userdata, Uint8* stream, in
     }
 }
 
+void MicrophoneStream::logEchoStats()
+{
+    MicEchoCanceller::Stats stats;
+    m_EchoCanceller.statistics(stats);
+    MicFarEndFeeder::Counters counters = m_FarEnd.takeCounters();
+
+    char delay[16], erl[16], erle[16], divergent[16], residual[16];
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                "Mic AEC: delay=%s ms ERL=%s ERLE=%s divergent=%s residual=%s starved=%llu/%llu trims=%llu (%llu samples) farDepth=%llu",
+                formatOptional(delay, stats.delayMs, "%d"),
+                formatOptional(erl, stats.erl, "%.1f"),
+                formatOptional(erle, stats.erle, "%.1f"),
+                formatOptional(divergent, stats.divergentFraction, "%.2f"),
+                formatOptional(residual, stats.residualEchoMax, "%.2f"),
+                static_cast<unsigned long long>(counters.starved),
+                static_cast<unsigned long long>(counters.frames),
+                static_cast<unsigned long long>(counters.trims),
+                static_cast<unsigned long long>(counters.trimmedSamples),
+                static_cast<unsigned long long>(m_FarEnd.depth()));
+}
+
 void MicrophoneStream::encoderThreadMain()
 {
     float frame[MicEncoder::FrameSamples];
@@ -377,6 +410,9 @@ void MicrophoneStream::encoderThreadMain()
     int lastEncodeError = 0;
     int lastSendError = 0;
     Uint32 lastFailureLog = 0;
+
+    bool echoStatsStarted = false;
+    Uint32 lastEchoStatsLog = 0;
 
     while (!m_Stopping) {
         {
@@ -411,6 +447,15 @@ void MicrophoneStream::encoderThreadMain()
                 m_FarEnd.popFrame(farFrame);
                 m_EchoCanceller.processReverse(farFrame);
                 m_EchoCanceller.processCapture(frame);
+
+                if (!echoStatsStarted) {
+                    echoStatsStarted = true;
+                    lastEchoStatsLog = SDL_GetTicks();
+                }
+                else if (SDL_TICKS_PASSED(SDL_GetTicks(), lastEchoStatsLog + kEchoStatsIntervalMs)) {
+                    logEchoStats();
+                    lastEchoStatsLog = SDL_GetTicks();
+                }
             }
 
             int len = m_Encoder.encode(frame, packet, sizeof(packet));

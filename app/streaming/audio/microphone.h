@@ -66,6 +66,7 @@ private:
     static void SDLCALL captureCallback(void* userdata, Uint8* stream, int len);
 
     void encoderThreadMain();
+    void logEchoStats();
     void onPermissionResult(bool granted);
     void reportPermissionDenied();
     bool openPreferredDeviceLocked();
