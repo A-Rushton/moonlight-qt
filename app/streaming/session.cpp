@@ -977,7 +977,9 @@ void Session::emitLaunchWarning(QString text)
 
 MicStatus Session::getMicStatus() const
 {
-    return m_Microphone ? m_Microphone->status() : MicStatus::Off;
+    // Called from the decoder thread; the stream is only destroyed after the decoder
+    const MicrophoneStream* microphone = m_PublishedMicrophone.load(std::memory_order_acquire);
+    return microphone ? microphone->status() : MicStatus::Off;
 }
 
 void Session::startMicrophone()
@@ -986,11 +988,14 @@ void Session::startMicrophone()
         return;
     }
 
-    m_Microphone.reset(new MicrophoneStream(m_Preferences->microphoneDevice));
-    m_Microphone->setMessageHandler([this](const QString& text, bool launchWarning) {
+    auto microphone = std::make_unique<MicrophoneStream>(m_Preferences->microphoneDevice);
+    microphone->setMessageHandler([this](const QString& text, bool launchWarning) {
         postMicMessage(text, launchWarning);
     });
-    m_Microphone->start();
+    microphone->start();
+
+    m_Microphone = std::move(microphone);
+    m_PublishedMicrophone.store(m_Microphone.get(), std::memory_order_release);
 }
 
 void Session::stopMicrophone()

@@ -1,6 +1,7 @@
 #include "microphonedevices.h"
 
 #include "SDL_compat.h"
+#include "streaming/audio/sdlaudiosubsystem.h"
 
 #include <QtDebug>
 
@@ -13,8 +14,8 @@ QStringList MicrophoneDevices::captureDevices()
 {
     QStringList devices;
 
-    if (SDL_InitSubSystem(SDL_INIT_AUDIO) != 0) {
-        qWarning() << "SDL_InitSubSystem(SDL_INIT_AUDIO) failed:" << SDL_GetError();
+    if (!SdlAudioSubsystem::acquire()) {
+        qWarning() << "Failed to initialize SDL audio:" << SDL_GetError();
         return devices;
     }
 
@@ -31,7 +32,7 @@ QStringList MicrophoneDevices::captureDevices()
         }
     }
 
-    SDL_QuitSubSystem(SDL_INIT_AUDIO);
+    SdlAudioSubsystem::release();
 
     return devices;
 }

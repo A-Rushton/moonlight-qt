@@ -361,7 +361,7 @@ void MicrophoneStream::encoderThreadMain()
                     checkBlockedCapture = false;
                     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                                 "Microphone delivered only silence for 3 seconds");
-                    notify(tr(u8"No audio is reaching Moonlight from your microphone. Check Windows Settings \u2192 Privacy & security \u2192 Microphone."), true);
+                    notify(tr(u8"No audio from your microphone. It may be muted or blocked in Windows Settings \u2192 Privacy & security \u2192 Microphone."), true);
                 }
             }
 

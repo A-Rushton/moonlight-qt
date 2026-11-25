@@ -12,6 +12,7 @@
 #include "audio/microphone.h"
 #include "video/overlaymanager.h"
 
+#include <atomic>
 #include <deque>
 #include <memory>
 #include <mutex>
@@ -297,6 +298,7 @@ private:
     Overlay::OverlayManager m_OverlayManager;
 
     std::unique_ptr<MicrophoneStream> m_Microphone;
+    std::atomic<MicrophoneStream*> m_PublishedMicrophone{nullptr};
     std::mutex m_MicMessageLock;
     std::deque<QString> m_MicMessages;
     bool m_MicMessageShowing;
