@@ -26,14 +26,19 @@ macx {
     LIBS += $$LIBS_DIR/lib/libopus.0.dylib $$LIBS_DIR/lib/libSDL2.dylib
 
     APM_DIR = $$PWD/../../libs/webrtc-apm/mac
-    exists($$APM_DIR/lib/libwebrtc-apm.a) {
-        DEFINES += HAVE_WEBRTC_APM WEBRTC_POSIX WEBRTC_MAC
-        INCLUDEPATH += $$APM_DIR/include
-        LIBS += $$APM_DIR/lib/libwebrtc-apm.a -framework CoreFoundation
+    !exists($$APM_DIR/lib/libwebrtc-apm.a) {
+        error("libs/webrtc-apm/mac is missing; run scripts/build-webrtc-apm.sh")
     }
+    DEFINES += HAVE_WEBRTC_APM WEBRTC_POSIX WEBRTC_MAC
+    INCLUDEPATH += $$APM_DIR/include
+    LIBS += $$APM_DIR/lib/libwebrtc-apm.a -framework CoreFoundation
     QMAKE_RPATHDIR += $$LIBS_DIR/lib
 }
 else {
     CONFIG += link_pkgconfig
     PKGCONFIG += opus sdl2
+    packagesExist(webrtc-audio-processing-2) {
+        PKGCONFIG += webrtc-audio-processing-2
+        DEFINES += HAVE_WEBRTC_APM
+    }
 }

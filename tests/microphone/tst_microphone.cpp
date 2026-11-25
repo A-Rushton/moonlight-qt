@@ -17,6 +17,7 @@
 namespace {
 
 constexpr size_t FRAME = 480;
+constexpr float kFarLevel = 0.6f;
 
 std::vector<float> ramp(size_t first, size_t count)
 {
@@ -218,6 +219,9 @@ private slots:
 
     void echoIsCancelled()
     {
+#ifndef HAVE_WEBRTC_APM
+        QSKIP("built without webrtc-audio-processing");
+#endif
         MicEchoCanceller aec;
         QVERIFY(aec.init());
         QVERIFY(aec.active());
@@ -225,13 +229,13 @@ private slots:
 
         constexpr size_t total = 8 * 48000;
         constexpr size_t delay = 4800;
-        std::vector<float> far(total);
+        std::vector<float> farEnd(total);
         uint32_t state = 12345;
         for (size_t i = 0; i < total; i++) {
             state = state * 1664525u + 1013904223u;
             float noise = (static_cast<int32_t>(state) / 2147483648.0f);
             float env = 0.5f + 0.5f * std::sin(2.0 * M_PI * 4.0 * i / 48000.0);
-            far[i] = 0.6f * env * noise;
+            farEnd[i] = kFarLevel * env * noise;
         }
 
         double inEnergy = 0, outEnergy = 0;
@@ -240,10 +244,10 @@ private slots:
             std::vector<float> cap(FRAME);
             for (size_t i = 0; i < FRAME; i++) {
                 size_t n = pos + i;
-                cap[i] = n >= delay ? 0.5f * far[n - delay] : 0.0f;
+                cap[i] = n >= delay ? 0.5f * farEnd[n - delay] : 0.0f;
             }
             std::vector<float> in = cap;
-            aec.processReverse(far.data() + pos);
+            aec.processReverse(farEnd.data() + pos);
             aec.processCapture(cap.data());
             if (pos >= measureFrom) {
                 for (size_t i = 0; i < FRAME; i++) {
@@ -259,6 +263,9 @@ private slots:
 
     void nearEndPreserved()
     {
+#ifndef HAVE_WEBRTC_APM
+        QSKIP("built without webrtc-audio-processing");
+#endif
         MicEchoCanceller aec;
         QVERIFY(aec.init());
         aec.setStreamDelayMs(100);

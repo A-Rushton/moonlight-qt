@@ -60,12 +60,7 @@ void MicEchoCanceller::processReverse(const float* frame480)
     }
 
     const float* src[1] = { frame480 };
-    float* dst[1] = { nullptr };
-    float scratch[480];
-    dst[0] = scratch;
-
-    int err = mImpl->apm->ProcessReverseStream(src, mImpl->streamConfig,
-                                               mImpl->streamConfig, dst);
+    int err = mImpl->apm->AnalyzeReverseStream(src, mImpl->streamConfig);
     if (err != webrtc::AudioProcessing::kNoError && !mImpl->reverseErrorLogged) {
         mImpl->reverseErrorLogged = true;
         SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
