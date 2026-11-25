@@ -56,6 +56,7 @@ MicrophoneStream::MicrophoneStream(QString preferredDevice)
       m_UsingFallback(false),
       m_Ring(kRingSamples),
       m_EchoCancelActive(false),
+      m_EchoCancelInitialised(false),
       m_Stopping(false),
       m_Device(0),
       m_Started(false),
@@ -86,10 +87,38 @@ bool MicrophoneStream::usingFallbackDevice() const
     return m_UsingFallback.load(std::memory_order_acquire);
 }
 
+bool MicrophoneStream::wantsFarEnd() const
+{
+    return m_EchoCancelActive.load(std::memory_order_acquire);
+}
+
 void MicrophoneStream::pushFarEnd(const float* mono, size_t samples)
 {
-    if (mono != nullptr && m_EchoCancelActive.load(std::memory_order_acquire)) {
+    if (mono != nullptr && wantsFarEnd()) {
         m_FarEnd.push(mono, samples);
+    }
+}
+
+void MicrophoneStream::initEchoCancellerLocked()
+{
+    if (m_EchoCancelInitialised) {
+        return;
+    }
+    m_EchoCancelInitialised = true;
+
+    // The encoder thread only touches the canceller once m_EchoCancelActive
+    // publishes it
+    if (m_EchoCanceller.init()) {
+        // A hint AEC3 may ignore; its own delay estimator tracks the real delay
+        m_EchoCanceller.setStreamDelayMs(kInitialEchoDelayMs);
+        m_EchoCancelActive.store(true, std::memory_order_release);
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                    "Microphone echo canceller initialised");
+    }
+    else {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                    "Microphone echo cancellation unavailable");
+        notify(tr("Echo cancellation unavailable. Use headphones to avoid echo."), true);
     }
 }
 
@@ -120,19 +149,6 @@ bool MicrophoneStream::start()
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
                      "Failed to create microphone Opus encoder");
         return false;
-    }
-
-    if (m_EchoCanceller.init()) {
-        // A starting hint only; AEC3's delay estimator tracks the real delay
-        m_EchoCanceller.setStreamDelayMs(kInitialEchoDelayMs);
-        m_EchoCancelActive.store(true, std::memory_order_release);
-        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
-                    "Microphone echo canceller initialised");
-    }
-    else {
-        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                    "Microphone echo cancellation unavailable");
-        notify(tr("Echo cancellation unavailable. Use headphones to avoid echo."), true);
     }
 
     if (!SdlAudioSubsystem::acquire()) {
@@ -199,6 +215,7 @@ bool MicrophoneStream::openPreferredDeviceLocked()
     }
 
     m_UsingFallback = name == nullptr && !m_PreferredDevice.isEmpty();
+    initEchoCancellerLocked();
     return true;
 }
 
@@ -291,6 +308,7 @@ void MicrophoneStream::handleDeviceRemoved(SDL_AudioDeviceID id)
         notify(tr("Microphone disconnected. Switched to the system default microphone."), false);
     }
     else {
+        m_EchoCancelActive = false;
         notify(tr("Microphone unavailable"), false);
     }
 }
@@ -311,6 +329,7 @@ void MicrophoneStream::stop()
     m_Stopped = true;
 
     m_Stopping = true;
+    m_EchoCancelActive = false;
     closeDeviceLocked();
 
     {
@@ -388,7 +407,7 @@ void MicrophoneStream::encoderThreadMain()
                 }
             }
 
-            if (m_EchoCanceller.active()) {
+            if (m_EchoCancelActive.load(std::memory_order_acquire)) {
                 m_FarEnd.popFrame(farFrame);
                 m_EchoCanceller.processReverse(farFrame);
                 m_EchoCanceller.processCapture(frame);
@@ -403,6 +422,7 @@ void MicrophoneStream::encoderThreadMain()
                     if (!m_Stopping) {
                         m_Status = MicStatus::Unavailable;
                     }
+                    m_EchoCancelActive = false;
                     return;
                 }
                 else if (err != 0) {

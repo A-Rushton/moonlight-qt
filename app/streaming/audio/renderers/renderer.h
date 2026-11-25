@@ -15,6 +15,11 @@ public:
     // Return false if an unrecoverable error has occurred and the renderer must be reinitialized
     virtual bool submitAudio(int bytesWritten) = 0;
 
+    // Whether the last submitAudio() queued its samples for playback
+    bool lastSubmitQueued() const {
+        return m_LastSubmitQueued;
+    }
+
     virtual void remapChannels(POPUS_MULTISTREAM_CONFIGURATION) {
         // Use default channel mapping:
         // 0 - Front Left
@@ -41,4 +46,7 @@ public:
             Q_UNREACHABLE();
         }
     }
+
+protected:
+    bool m_LastSubmitQueued = false;
 };

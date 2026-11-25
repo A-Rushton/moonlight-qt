@@ -983,27 +983,27 @@ MicStatus Session::getMicStatus() const
     return microphone ? microphone->status() : MicStatus::Off;
 }
 
-void Session::pushMicFarEnd(const void* pcm, int frames, bool isFloat)
+int Session::prepareMicFarEnd(const void* pcm, int frames, bool isFloat)
 {
     // Called from the audio thread, which stops in LiStopConnection(); the
     // stream outlives it and stays safe to feed after stop()
-    MicrophoneStream* microphone = m_PublishedMicrophone.load(std::memory_order_acquire);
+    const MicrophoneStream* microphone = m_PublishedMicrophone.load(std::memory_order_acquire);
     const int channels = m_ActiveAudioConfig.channelCount;
-    if (microphone == nullptr || pcm == nullptr || frames <= 0 || channels <= 0) {
-        return;
+    if (microphone == nullptr || !microphone->wantsFarEnd() ||
+            pcm == nullptr || frames <= 0 || channels <= 0) {
+        return 0;
     }
 
-    constexpr int kChunkFrames = 1024;
-    float mono[kChunkFrames];
-    const size_t frameBytes = static_cast<size_t>(channels) * (isFloat ? sizeof(float) : sizeof(int16_t));
-    const auto* in = static_cast<const uint8_t*>(pcm);
+    frames = SDL_min(frames, k_MicFarEndMaxFrames);
+    micDownmixToMono(pcm, frames, channels, isFloat, m_MicFarEndMono);
+    return frames;
+}
 
-    while (frames > 0) {
-        int chunk = SDL_min(frames, kChunkFrames);
-        micDownmixToMono(in, chunk, channels, isFloat, mono);
-        microphone->pushFarEnd(mono, static_cast<size_t>(chunk));
-        in += frameBytes * chunk;
-        frames -= chunk;
+void Session::pushMicFarEnd(int samples)
+{
+    MicrophoneStream* microphone = m_PublishedMicrophone.load(std::memory_order_acquire);
+    if (microphone != nullptr && samples > 0) {
+        microphone->pushFarEnd(m_MicFarEndMono, static_cast<size_t>(SDL_min(samples, k_MicFarEndMaxFrames)));
     }
 }
 

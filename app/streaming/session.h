@@ -168,7 +168,11 @@ private:
 
     void updateMicMessage();
 
-    void pushMicFarEnd(const void* pcm, int frames, bool isFloat);
+    // Downmixes decoded audio for the echo canceller; returns the samples held
+    int prepareMicFarEnd(const void* pcm, int frames, bool isFloat);
+
+    // Hands the prepared samples over once they are queued for playback
+    void pushMicFarEnd(int samples);
 
     bool populateDecoderProperties(SDL_Window* window);
 
@@ -301,6 +305,10 @@ private:
 
     std::unique_ptr<MicrophoneStream> m_Microphone;
     std::atomic<MicrophoneStream*> m_PublishedMicrophone{nullptr};
+
+    // Opus maximum: 120 ms at 48 kHz
+    static constexpr int k_MicFarEndMaxFrames = 5760;
+    float m_MicFarEndMono[k_MicFarEndMaxFrames];
     std::mutex m_MicMessageLock;
     std::deque<QString> m_MicMessages;
     bool m_MicMessageShowing;

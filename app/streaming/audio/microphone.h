@@ -54,6 +54,7 @@ public:
     // Decoded host audio as played, mono 48 kHz. Called from the audio
     // decode thread; never blocks.
     void pushFarEnd(const float* mono, size_t samples);
+    bool wantsFarEnd() const;
 
 private:
     struct PermissionGuard
@@ -70,6 +71,7 @@ private:
     bool openPreferredDeviceLocked();
     bool openDeviceLocked(const char* name);
     void closeDeviceLocked();
+    void initEchoCancellerLocked();
     void notify(const QString& text, bool launchWarning);
 
     const QString m_PreferredDevice;
@@ -84,6 +86,7 @@ private:
     MicEchoCanceller m_EchoCanceller;
     MicFarEndFeeder m_FarEnd;
     std::atomic<bool> m_EchoCancelActive;
+    bool m_EchoCancelInitialised;
 
     std::thread m_EncoderThread;
     std::mutex m_WakeLock;

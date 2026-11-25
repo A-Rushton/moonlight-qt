@@ -188,6 +188,7 @@ void Session::arDecodeAndPlaySample(char* sampleData, int sampleLength)
     }
 
     if (s_ActiveSession->m_AudioRenderer != nullptr) {
+        int farEndSamples = 0;
         int sampleSize = s_ActiveSession->m_AudioRenderer->getAudioBufferSampleSize();
         int frameSize = sampleSize * s_ActiveSession->m_ActiveAudioConfig.channelCount;
         int desiredBufferSize = frameSize * s_ActiveSession->m_ActiveAudioConfig.samplesPerFrame;
@@ -218,8 +219,8 @@ void Session::arDecodeAndPlaySample(char* sampleData, int sampleLength)
             SDL_assert(desiredBufferSize >= frameSize * samplesDecoded);
             desiredBufferSize = frameSize * samplesDecoded;
 
-            s_ActiveSession->pushMicFarEnd(buffer, samplesDecoded,
-                                           s_ActiveSession->m_AudioRenderer->getAudioBufferFormat() == IAudioRenderer::AudioFormat::Float32NE);
+            farEndSamples = s_ActiveSession->prepareMicFarEnd(buffer, samplesDecoded,
+                                                              s_ActiveSession->m_AudioRenderer->getAudioBufferFormat() == IAudioRenderer::AudioFormat::Float32NE);
         }
         else {
             desiredBufferSize = 0;
@@ -234,6 +235,10 @@ void Session::arDecodeAndPlaySample(char* sampleData, int sampleLength)
 
             delete s_ActiveSession->m_AudioRenderer;
             s_ActiveSession->m_AudioRenderer = nullptr;
+        }
+        else if (farEndSamples > 0 && s_ActiveSession->m_AudioRenderer->lastSubmitQueued()) {
+            // Only audio that will actually be played is a valid echo reference
+            s_ActiveSession->pushMicFarEnd(farEndSamples);
         }
     }
 

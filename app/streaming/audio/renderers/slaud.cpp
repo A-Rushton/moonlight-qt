@@ -96,6 +96,8 @@ SLAudioRenderer::~SLAudioRenderer()
 
 bool SLAudioRenderer::submitAudio(int bytesWritten)
 {
+    m_LastSubmitQueued = false;
+
     if (bytesWritten == 0) {
         // This buffer will be reused next time
         return true;
@@ -104,6 +106,7 @@ bool SLAudioRenderer::submitAudio(int bytesWritten)
     if (LiGetPendingAudioDuration() < m_MaxQueuedAudioMs) {
         SLAudio_SubmitFrame(m_AudioStream);
         m_AudioBuffer = nullptr;
+        m_LastSubmitQueued = true;
     }
     else {
         SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,

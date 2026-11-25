@@ -381,29 +381,44 @@ private slots:
             feeder.push(in.data() + i, 240);
         }
 
+        // Resynchronised to the newest samples, keeping the jitter target
         std::vector<float> frame(FRAME);
-        QVERIFY(feeder.popFrame(frame.data()));
-        QCOMPARE(frame, ramp(pushed - FRAME, FRAME));
+        const size_t first = pushed - MicFarEndFeeder::TargetBacklogSamples;
+        for (size_t f = first; f < pushed; f += FRAME) {
+            QVERIFY(feeder.popFrame(frame.data()));
+            QCOMPARE(frame, ramp(f, FRAME));
+        }
         QVERIFY(!feeder.popFrame(frame.data()));
     }
 
     void farEndBacklogIsBounded()
     {
+        QCOMPARE(MicFarEndFeeder::MaxBacklogSamples, size_t(10 * FRAME));
+        QCOMPARE(MicFarEndFeeder::TargetBacklogSamples, size_t(4 * FRAME));
+
         MicFarEndFeeder feeder;
-        std::vector<float> in = ramp(0, 5 * FRAME + 100);
+        const size_t pushed = 12 * FRAME + 100;
+        std::vector<float> in = ramp(0, pushed);
         feeder.push(in.data(), in.size());
 
         std::vector<float> frame(FRAME);
         QVERIFY(feeder.popFrame(frame.data()));
-        QCOMPARE(frame, ramp(4 * FRAME + 100, FRAME));
+        QCOMPARE(frame, ramp(pushed - 4 * FRAME, FRAME));
+    }
 
-        MicFarEndFeeder small;
-        std::vector<float> two = ramp(0, 2 * FRAME);
-        small.push(two.data(), two.size());
-        QVERIFY(small.popFrame(frame.data()));
-        QCOMPARE(frame, ramp(0, FRAME));
-        QVERIFY(small.popFrame(frame.data()));
-        QCOMPARE(frame, ramp(FRAME, FRAME));
+    void farEndJitterIsAbsorbed()
+    {
+        MicFarEndFeeder feeder;
+        const size_t pushed = 10 * FRAME;
+        std::vector<float> in = ramp(0, pushed);
+        feeder.push(in.data(), in.size());
+
+        std::vector<float> frame(FRAME);
+        for (size_t f = 0; f < pushed; f += FRAME) {
+            QVERIFY(feeder.popFrame(frame.data()));
+            QCOMPARE(frame, ramp(f, FRAME));
+        }
+        QVERIFY(!feeder.popFrame(frame.data()));
     }
 };
 

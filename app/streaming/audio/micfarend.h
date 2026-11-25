@@ -13,8 +13,10 @@ public:
     static constexpr size_t FrameSamples = MicEncoder::FrameSamples;
     static constexpr size_t CapacitySamples = MicEncoder::SampleRate / 5;
 
-    // Backlog beyond which the reference is resynchronised to the newest frame
-    static constexpr size_t MaxBacklogSamples = 3 * FrameSamples;
+    // Ordinary network jitter is absorbed below MaxBacklogSamples; beyond it
+    // the reference is resynchronised to the newest TargetBacklogSamples
+    static constexpr size_t MaxBacklogSamples = 10 * FrameSamples;
+    static constexpr size_t TargetBacklogSamples = 4 * FrameSamples;
 
     MicFarEndFeeder() : m_Ring(CapacitySamples) {}
 
@@ -30,7 +32,7 @@ public:
     bool popFrame(float* out) noexcept
     {
         if (m_Ring.available() > MaxBacklogSamples) {
-            m_Ring.discardTo(FrameSamples);
+            m_Ring.discardTo(TargetBacklogSamples);
         }
 
         if (m_Ring.popFrame(out, FrameSamples)) {

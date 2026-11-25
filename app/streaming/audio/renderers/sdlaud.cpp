@@ -93,6 +93,8 @@ void* SdlAudioRenderer::getAudioBuffer(int*)
 
 bool SdlAudioRenderer::submitAudio(int bytesWritten)
 {
+    m_LastSubmitQueued = false;
+
     if (bytesWritten == 0) {
         // Nothing to do
         return true;
@@ -129,6 +131,7 @@ bool SdlAudioRenderer::submitAudio(int bytesWritten)
         return false;
     }
 
+    m_LastSubmitQueued = true;
     return true;
 }
 
