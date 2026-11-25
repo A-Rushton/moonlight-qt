@@ -5,8 +5,8 @@ $Version = "2.1"
 $Url = "https://freedesktop.org/software/pulseaudio/webrtc-audio-processing/webrtc-audio-processing-$Version.tar.xz"
 $Sha256 = "ae9302824b2038d394f10213cab05312c564a038434269f11dbf68f511f9f9fe"
 $Targets = @(
-    @{ Name = "windows-x64"; VcArch = "amd64"; TgtArch = "x64"; CpuFamily = "x86_64"; Cpu = "x86_64"; Machine = "X64" },
-    @{ Name = "windows-arm64"; VcArch = "arm64"; TgtArch = "arm64"; CpuFamily = "aarch64"; Cpu = "arm64"; Machine = "ARM64" }
+    @{ Name = "windows-x64"; VcArch = "amd64"; TgtArch = "x64"; CpuFamily = "x86_64"; Cpu = "x86_64"; Machine = "X64"; Guard = @("/guard:cf", "/guard:ehcont") },
+    @{ Name = "windows-arm64"; VcArch = "arm64"; TgtArch = "arm64"; CpuFamily = "aarch64"; Cpu = "arm64"; Machine = "ARM64"; Guard = @("/guard:cf", "/guard:ehcont", "/guard:signret") }
 )
 # webrtc needs C++20 under MSVC (designated initializers); abseil must match
 $CppStd = "c++20"
@@ -149,6 +149,14 @@ try {
                 "skip_sanity_check = true"
             )
         }
+        # Match the app's hardening flags (globaldefs.pri); these also reach abseil
+        $GuardArgs = ($Target.Guard | ForEach-Object { "'$_'" }) -join ", "
+        $MachineLines += @(
+            "",
+            "[built-in options]",
+            "c_args = [$GuardArgs]",
+            "cpp_args = [$GuardArgs]"
+        )
         Set-Content -Path $MachineFile -Encoding ASCII -Value $MachineLines
 
         $BuildDir = Join-Path $WorkDir "b-$Name"
