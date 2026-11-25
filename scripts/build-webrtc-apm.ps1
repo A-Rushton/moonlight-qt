@@ -1,0 +1,177 @@
+# Builds webrtc-audio-processing as static libraries in libs\webrtc-apm\windows-{x64,arm64}
+$ErrorActionPreference = 'Stop'
+
+$Version = "2.1"
+$Url = "https://freedesktop.org/software/pulseaudio/webrtc-audio-processing/webrtc-audio-processing-$Version.tar.xz"
+$Sha256 = "ae9302824b2038d394f10213cab05312c564a038434269f11dbf68f511f9f9fe"
+$Targets = @(
+    @{ Name = "windows-x64"; VcArch = "amd64"; CpuFamily = "x86_64"; Cpu = "x86_64"; Machine = "X64" },
+    @{ Name = "windows-arm64"; VcArch = "arm64"; CpuFamily = "aarch64"; Cpu = "arm64"; Machine = "ARM64" }
+)
+
+$SourceRoot = Split-Path -Parent $PSScriptRoot
+$OutRoot = Join-Path $SourceRoot "libs\webrtc-apm"
+
+function Invoke-Native {
+    param([string]$Exe, [string[]]$Arguments)
+    & $Exe @Arguments
+    if ($LASTEXITCODE -ne 0) {
+        throw "$Exe $($Arguments -join ' ') failed with exit code $LASTEXITCODE"
+    }
+}
+
+function Test-Built($Target) {
+    $VersionFile = Join-Path $OutRoot "$($Target.Name)\VERSION"
+    (Test-Path $VersionFile) -and ((Get-Content $VersionFile -Raw).Trim() -eq $Version)
+}
+
+function Import-VcVars($VcVarsAll, $Arch, $WorkDir) {
+    $Bat = Join-Path $WorkDir "vcvars-$Arch.bat"
+    Set-Content -Path $Bat -Encoding ASCII -Value @(
+        "@echo off",
+        "call `"$VcVarsAll`" $Arch >nul || exit /b 1",
+        "set"
+    )
+    $Lines = & $Bat
+    if ($LASTEXITCODE -ne 0) {
+        throw "vcvarsall.bat $Arch failed with exit code $LASTEXITCODE"
+    }
+    foreach ($Line in $Lines) {
+        $Index = $Line.IndexOf('=')
+        if ($Index -gt 0) {
+            [Environment]::SetEnvironmentVariable($Line.Substring(0, $Index), $Line.Substring($Index + 1), 'Process')
+        }
+    }
+    if (-not (Get-Command cl.exe -ErrorAction SilentlyContinue)) {
+        throw "cl.exe not found after vcvarsall.bat $Arch"
+    }
+}
+
+function Save-Environment {
+    $Saved = @{}
+    Get-ChildItem env: | ForEach-Object { $Saved[$_.Name] = $_.Value }
+    $Saved
+}
+
+function Restore-Environment($Saved) {
+    @(Get-ChildItem env:) | Where-Object { -not $Saved.ContainsKey($_.Name) } | ForEach-Object {
+        [Environment]::SetEnvironmentVariable($_.Name, $null, 'Process')
+    }
+    foreach ($Name in $Saved.Keys) {
+        [Environment]::SetEnvironmentVariable($Name, $Saved[$Name], 'Process')
+    }
+}
+
+$Pending = @($Targets | Where-Object { -not (Test-Built $_) })
+if ($Pending.Count -eq 0) {
+    Write-Host "webrtc-audio-processing $Version already built" -ForegroundColor Green
+    exit 0
+}
+
+foreach ($Tool in @("meson", "ninja", "python")) {
+    if (-not (Get-Command $Tool -ErrorAction SilentlyContinue)) {
+        throw "$Tool not found"
+    }
+}
+
+$VsWhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
+if (-not (Test-Path $VsWhere)) {
+    throw "vswhere.exe not found"
+}
+$VsPath = & $VsWhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+if ($LASTEXITCODE -ne 0 -or -not $VsPath) {
+    throw "Visual Studio with C++ tools not found"
+}
+$VcVarsAll = Join-Path $VsPath "VC\Auxiliary\Build\vcvarsall.bat"
+
+$HostArch = if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "arm64" } else { "amd64" }
+
+$WorkDir = Join-Path ([IO.Path]::GetTempPath()) ("wapm-" + [Guid]::NewGuid().ToString("N").Substring(0, 8))
+New-Item -ItemType Directory -Path $WorkDir | Out-Null
+
+try {
+    $Archive = Join-Path $WorkDir "src.tar.xz"
+    Write-Host "Downloading webrtc-audio-processing $Version..." -ForegroundColor Cyan
+    Invoke-Native "curl.exe" @("-s", "-L", "-f", "--retry", "3", "-o", $Archive, $Url)
+    $Hash = (Get-FileHash -Algorithm SHA256 $Archive).Hash.ToLowerInvariant()
+    if ($Hash -ne $Sha256) {
+        throw "Checksum mismatch for $Url (got $Hash)"
+    }
+    Invoke-Native "python" @("-c", "import sys, tarfile; t = tarfile.open(sys.argv[1]); t.extractall(sys.argv[2], **({'filter': 'data'} if hasattr(tarfile, 'data_filter') else {}))", $Archive, $WorkDir)
+    $SrcDir = Join-Path $WorkDir "webrtc-audio-processing-$Version"
+
+    foreach ($Target in $Pending) {
+        $Name = $Target.Name
+        Write-Host "Building $Name..." -ForegroundColor Cyan
+
+        $MachineFile = Join-Path $WorkDir "$Name.ini"
+        $MachineLines = @(
+            "[binaries]",
+            "c = 'cl'",
+            "cpp = 'cl'",
+            "ar = 'lib'"
+        )
+        if ($Target.VcArch -eq $HostArch) {
+            $VcArg = $HostArch
+            $MachineArg = "--native-file"
+        } else {
+            $VcArg = "$($HostArch)_$($Target.VcArch)"
+            $MachineArg = "--cross-file"
+            $MachineLines += @(
+                "",
+                "[host_machine]",
+                "system = 'windows'",
+                "cpu_family = '$($Target.CpuFamily)'",
+                "cpu = '$($Target.Cpu)'",
+                "endian = 'little'"
+            )
+        }
+        Set-Content -Path $MachineFile -Encoding ASCII -Value $MachineLines
+
+        $BuildDir = Join-Path $WorkDir "b-$Name"
+        $Prefix = Join-Path $WorkDir "i-$Name"
+        $SavedEnv = Save-Environment
+        try {
+            Import-VcVars $VcVarsAll $VcArg $WorkDir
+            Invoke-Native "meson" @("setup", $BuildDir, $SrcDir, $MachineArg, $MachineFile,
+                "--buildtype=release", "--default-library=static", "-Db_vscrt=md",
+                "-Dwrap_mode=forcefallback", "--prefix", $Prefix)
+            Invoke-Native "meson" @("compile", "-C", $BuildDir)
+            Invoke-Native "meson" @("install", "-C", $BuildDir, "--quiet")
+
+            $MainLib = @(Get-ChildItem -Path (Join-Path $Prefix "lib") -File |
+                Where-Object { $_.Name -match '^(lib)?webrtc-audio-processing-2\.(a|lib)$' })
+            if ($MainLib.Count -ne 1) {
+                throw "webrtc-audio-processing library not found for $Name"
+            }
+            $AbslLibs = @(Get-ChildItem -Path (Join-Path $BuildDir "subprojects") -Recurse -File |
+                Where-Object { $_.Extension -in @(".a", ".lib") } | Sort-Object FullName)
+            if ($AbslLibs.Count -eq 0) {
+                throw "No abseil libraries found for $Name"
+            }
+
+            $OutDir = Join-Path $OutRoot $Name
+            if (Test-Path $OutDir) {
+                Remove-Item -Path $OutDir -Recurse -Force
+            }
+            New-Item -ItemType Directory -Path (Join-Path $OutDir "lib") | Out-Null
+
+            $LibArgs = @("/NOLOGO", "/MACHINE:$($Target.Machine)", "/OUT:$(Join-Path $OutDir 'lib\webrtc-apm.lib')", $MainLib[0].FullName)
+            $LibArgs += $AbslLibs | ForEach-Object { $_.FullName }
+            Invoke-Native "lib.exe" $LibArgs
+        } finally {
+            Restore-Environment $SavedEnv
+        }
+
+        $IncDir = Join-Path $Prefix "include"
+        if (-not (Test-Path (Join-Path $IncDir "absl"))) {
+            throw "abseil headers were not installed for $Name"
+        }
+        Copy-Item -Path (Join-Path $IncDir "webrtc-audio-processing-2") -Destination (Join-Path $OutDir "include") -Recurse
+        Copy-Item -Path (Join-Path $IncDir "absl") -Destination (Join-Path $OutDir "include\absl") -Recurse
+        Set-Content -Path (Join-Path $OutDir "VERSION") -Encoding ASCII -Value $Version
+        Write-Host "Built $OutDir" -ForegroundColor Green
+    }
+} finally {
+    Remove-Item -Path $WorkDir -Recurse -Force -ErrorAction SilentlyContinue
+}

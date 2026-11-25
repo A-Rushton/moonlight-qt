@@ -64,6 +64,28 @@ jobs:
           arch: win64_msvc2022_arm64_cross_compiled
           version: ${{ matrix.qt_version }}
 
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install Meson and Ninja
+        run: pip install meson ninja
+
+      - name: Cache webrtc-audio-processing
+        uses: actions/cache@v4
+        with:
+          path: libs/webrtc-apm
+          key: webrtc-apm-${{ runner.os }}-${{ hashFiles('scripts/build-webrtc-apm.*') }}
+
+      - name: Build webrtc-audio-processing (Windows)
+        if: runner.os == 'Windows'
+        run: powershell ./scripts/build-webrtc-apm.ps1
+
+      - name: Build webrtc-audio-processing (macOS)
+        if: runner.os == 'macOS'
+        run: bash scripts/build-webrtc-apm.sh
+
       - name: Build x64 binaries (Windows)
         if: runner.os == 'Windows'
         shell: cmd
