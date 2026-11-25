@@ -1,6 +1,7 @@
 #include "session.h"
 #include "settings/streamingpreferences.h"
 #include "streaming/streamutils.h"
+#include "streaming/audio/micdownmix.h"
 #include "backend/richpresencemanager.h"
 
 #include <Limelight.h>
@@ -980,6 +981,30 @@ MicStatus Session::getMicStatus() const
     // Called from the decoder thread; the stream is only destroyed after the decoder
     const MicrophoneStream* microphone = m_PublishedMicrophone.load(std::memory_order_acquire);
     return microphone ? microphone->status() : MicStatus::Off;
+}
+
+void Session::pushMicFarEnd(const void* pcm, int frames, bool isFloat)
+{
+    // Called from the audio thread, which stops in LiStopConnection(); the
+    // stream outlives it and stays safe to feed after stop()
+    MicrophoneStream* microphone = m_PublishedMicrophone.load(std::memory_order_acquire);
+    const int channels = m_ActiveAudioConfig.channelCount;
+    if (microphone == nullptr || pcm == nullptr || frames <= 0 || channels <= 0) {
+        return;
+    }
+
+    constexpr int kChunkFrames = 1024;
+    float mono[kChunkFrames];
+    const size_t frameBytes = static_cast<size_t>(channels) * (isFloat ? sizeof(float) : sizeof(int16_t));
+    const auto* in = static_cast<const uint8_t*>(pcm);
+
+    while (frames > 0) {
+        int chunk = SDL_min(frames, kChunkFrames);
+        micDownmixToMono(in, chunk, channels, isFloat, mono);
+        microphone->pushFarEnd(mono, static_cast<size_t>(chunk));
+        in += frameBytes * chunk;
+        frames -= chunk;
+    }
 }
 
 void Session::startMicrophone()

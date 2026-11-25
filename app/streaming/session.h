@@ -168,6 +168,8 @@ private:
 
     void updateMicMessage();
 
+    void pushMicFarEnd(const void* pcm, int frames, bool isFloat);
+
     bool populateDecoderProperties(SDL_Window* window);
 
     IAudioRenderer* createAudioRenderer(const POPUS_MULTISTREAM_CONFIGURATION opusConfig);

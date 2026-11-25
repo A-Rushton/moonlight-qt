@@ -1,6 +1,8 @@
 #pragma once
 
+#include "micechocanceller.h"
 #include "micencoder.h"
+#include "micfarend.h"
 #include "micring.h"
 
 #include "SDL_compat.h"
@@ -49,6 +51,10 @@ public:
     void handleDeviceRemoved(SDL_AudioDeviceID id);
     bool usingFallbackDevice() const;
 
+    // Decoded host audio as played, mono 48 kHz. Called from the audio
+    // decode thread; never blocks.
+    void pushFarEnd(const float* mono, size_t samples);
+
 private:
     struct PermissionGuard
     {
@@ -74,6 +80,10 @@ private:
 
     MicRing m_Ring;
     MicEncoder m_Encoder;
+
+    MicEchoCanceller m_EchoCanceller;
+    MicFarEndFeeder m_FarEnd;
+    std::atomic<bool> m_EchoCancelActive;
 
     std::thread m_EncoderThread;
     std::mutex m_WakeLock;

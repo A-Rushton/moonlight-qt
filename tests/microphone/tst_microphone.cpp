@@ -11,7 +11,9 @@
 #include <vector>
 
 #include "micechocanceller.h"
+#include "micdownmix.h"
 #include "micencoder.h"
+#include "micfarend.h"
 #include "micring.h"
 
 namespace {
@@ -307,6 +309,101 @@ private slots:
         aec.processReverse(frame.data());
         aec.processCapture(frame.data());
         QCOMPARE(std::memcmp(frame.data(), copy.data(), FRAME * sizeof(float)), 0);
+    }
+    void downmixLayouts()
+    {
+        constexpr int frames = 37;
+        for (int channels : { 2, 6, 8 }) {
+            std::vector<float> fpcm(static_cast<size_t>(frames) * channels);
+            std::vector<int16_t> ipcm(fpcm.size());
+            float floatMean = 0.0f;
+            float intMean = 0.0f;
+            for (int c = 0; c < channels; c++) {
+                float fv = 0.1f * (c + 1) - 0.35f;
+                int16_t iv = static_cast<int16_t>(4000 * (c + 1) - 12000);
+                floatMean += fv;
+                intMean += iv / 32768.0f;
+                for (int f = 0; f < frames; f++) {
+                    fpcm[f * channels + c] = fv;
+                    ipcm[f * channels + c] = iv;
+                }
+            }
+            floatMean /= channels;
+            intMean /= channels;
+
+            std::vector<float> out(frames, 99.0f);
+            micDownmixToMono(fpcm.data(), frames, channels, true, out.data());
+            for (float s : out) {
+                QVERIFY(std::fabs(s - floatMean) < 1e-6f);
+            }
+
+            std::fill(out.begin(), out.end(), 99.0f);
+            micDownmixToMono(ipcm.data(), frames, channels, false, out.data());
+            for (float s : out) {
+                QVERIFY(std::fabs(s - intMean) < 1e-6f);
+            }
+        }
+    }
+
+    void farEndStarvedFeedsSilence()
+    {
+        MicFarEndFeeder feeder;
+        std::vector<float> frame(FRAME, 1.0f);
+        QVERIFY(!feeder.popFrame(frame.data()));
+        QVERIFY(std::all_of(frame.begin(), frame.end(), [](float s) { return s == 0.0f; }));
+
+        std::vector<float> partial = ramp(1, FRAME - 1);
+        feeder.push(partial.data(), partial.size());
+        std::fill(frame.begin(), frame.end(), 1.0f);
+        QVERIFY(!feeder.popFrame(frame.data()));
+        QVERIFY(std::all_of(frame.begin(), frame.end(), [](float s) { return s == 0.0f; }));
+    }
+
+    void farEndPopsPushedFrame()
+    {
+        MicFarEndFeeder feeder;
+        std::vector<float> in = ramp(0, FRAME);
+        feeder.push(in.data(), in.size());
+        std::vector<float> frame(FRAME);
+        QVERIFY(feeder.popFrame(frame.data()));
+        QCOMPARE(frame, in);
+        QVERIFY(!feeder.popFrame(frame.data()));
+    }
+
+    void farEndOverrunKeepsLatest()
+    {
+        MicFarEndFeeder feeder;
+        QCOMPARE(MicFarEndFeeder::CapacitySamples, size_t(9600));
+
+        constexpr size_t pushed = 9600 + 2400;
+        std::vector<float> in = ramp(0, pushed);
+        for (size_t i = 0; i < pushed; i += 240) {
+            feeder.push(in.data() + i, 240);
+        }
+
+        std::vector<float> frame(FRAME);
+        QVERIFY(feeder.popFrame(frame.data()));
+        QCOMPARE(frame, ramp(pushed - FRAME, FRAME));
+        QVERIFY(!feeder.popFrame(frame.data()));
+    }
+
+    void farEndBacklogIsBounded()
+    {
+        MicFarEndFeeder feeder;
+        std::vector<float> in = ramp(0, 5 * FRAME + 100);
+        feeder.push(in.data(), in.size());
+
+        std::vector<float> frame(FRAME);
+        QVERIFY(feeder.popFrame(frame.data()));
+        QCOMPARE(frame, ramp(4 * FRAME + 100, FRAME));
+
+        MicFarEndFeeder small;
+        std::vector<float> two = ramp(0, 2 * FRAME);
+        small.push(two.data(), two.size());
+        QVERIFY(small.popFrame(frame.data()));
+        QCOMPARE(frame, ramp(0, FRAME));
+        QVERIFY(small.popFrame(frame.data()));
+        QCOMPARE(frame, ramp(FRAME, FRAME));
     }
 };
 

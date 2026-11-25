@@ -14,6 +14,8 @@ SOURCES += \
 
 HEADERS += \
     $$APP_DIR/streaming/audio/micring.h \
+    $$APP_DIR/streaming/audio/micdownmix.h \
+    $$APP_DIR/streaming/audio/micfarend.h \
     $$APP_DIR/streaming/audio/micencoder.h \
     $$APP_DIR/streaming/audio/micechocanceller.h
 

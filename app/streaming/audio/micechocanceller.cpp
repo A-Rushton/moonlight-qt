@@ -4,7 +4,18 @@
 
 #ifdef HAVE_WEBRTC_APM
 
+#if defined(_WIN32) && !defined(NOMINMAX)
+#define NOMINMAX
+#endif
+
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+#endif
 #include <modules/audio_processing/include/audio_processing.h>
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 
 namespace {
 

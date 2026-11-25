@@ -165,6 +165,35 @@ macx {
     CONFIG += ffmpeg
 }
 
+win32 {
+    contains(QT_ARCH, x86_64): WEBRTC_APM_DIR = $$PWD/../libs/webrtc-apm/windows-x64
+    contains(QT_ARCH, arm64): WEBRTC_APM_DIR = $$PWD/../libs/webrtc-apm/windows-arm64
+    !exists($$WEBRTC_APM_DIR/lib/webrtc-apm.lib) {
+        error("Missing $$WEBRTC_APM_DIR. Please run 'powershell .\scripts\build-webrtc-apm.ps1'.")
+    }
+
+    # NOMINMAX is defined where the headers are included to avoid clashing with dxva2.cpp
+    INCLUDEPATH += $$WEBRTC_APM_DIR/include
+    LIBS += $$WEBRTC_APM_DIR/lib/webrtc-apm.lib
+    DEFINES += HAVE_WEBRTC_APM WEBRTC_WIN _USE_MATH_DEFINES __STDC_FORMAT_MACROS=1
+}
+macx:!disable-prebuilts {
+    WEBRTC_APM_DIR = $$PWD/../libs/webrtc-apm/mac
+    !exists($$WEBRTC_APM_DIR/lib/libwebrtc-apm.a) {
+        error("Missing $$WEBRTC_APM_DIR. Please run 'scripts/build-webrtc-apm.sh'.")
+    }
+
+    INCLUDEPATH += $$WEBRTC_APM_DIR/include
+    LIBS += $$WEBRTC_APM_DIR/lib/libwebrtc-apm.a -framework CoreFoundation
+    DEFINES += HAVE_WEBRTC_APM WEBRTC_POSIX WEBRTC_MAC
+}
+unix:if(!macx|disable-prebuilts):!config_SL {
+    packagesExist(webrtc-audio-processing-2) {
+        PKGCONFIG += webrtc-audio-processing-2
+        DEFINES += HAVE_WEBRTC_APM
+    }
+}
+
 SOURCES += \
     backend/nvaddress.cpp \
     backend/nvapp.cpp \
@@ -194,6 +223,7 @@ SOURCES += \
     streaming/input/reltouch.cpp \
     streaming/session.cpp \
     streaming/audio/audio.cpp \
+    streaming/audio/micechocanceller.cpp \
     streaming/audio/micencoder.cpp \
     streaming/audio/microphone.cpp \
     streaming/audio/renderers/sdlaud.cpp \
@@ -233,7 +263,10 @@ HEADERS += \
     settings/microphonedevices.h \
     streaming/input/input.h \
     streaming/session.h \
+    streaming/audio/micdownmix.h \
+    streaming/audio/micechocanceller.h \
     streaming/audio/micencoder.h \
+    streaming/audio/micfarend.h \
     streaming/audio/micpermission.h \
     streaming/audio/micring.h \
     streaming/audio/microphone.h \

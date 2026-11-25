@@ -10,6 +10,7 @@
 namespace {
 
 constexpr size_t kRingSamples = MicEncoder::SampleRate / 5;
+constexpr int kInitialEchoDelayMs = 60;
 
 // Windows reports a privacy-blocked microphone as a device that only
 // delivers digital silence
@@ -54,6 +55,7 @@ MicrophoneStream::MicrophoneStream(QString preferredDevice)
       m_Status(MicStatus::Unavailable),
       m_UsingFallback(false),
       m_Ring(kRingSamples),
+      m_EchoCancelActive(false),
       m_Stopping(false),
       m_Device(0),
       m_Started(false),
@@ -84,6 +86,13 @@ bool MicrophoneStream::usingFallbackDevice() const
     return m_UsingFallback.load(std::memory_order_acquire);
 }
 
+void MicrophoneStream::pushFarEnd(const float* mono, size_t samples)
+{
+    if (mono != nullptr && m_EchoCancelActive.load(std::memory_order_acquire)) {
+        m_FarEnd.push(mono, samples);
+    }
+}
+
 bool MicrophoneStream::start()
 {
     std::unique_lock<std::mutex> lock(m_StateLock);
@@ -111,6 +120,19 @@ bool MicrophoneStream::start()
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
                      "Failed to create microphone Opus encoder");
         return false;
+    }
+
+    if (m_EchoCanceller.init()) {
+        // A starting hint only; AEC3's delay estimator tracks the real delay
+        m_EchoCanceller.setStreamDelayMs(kInitialEchoDelayMs);
+        m_EchoCancelActive.store(true, std::memory_order_release);
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                    "Microphone echo canceller initialised");
+    }
+    else {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                    "Microphone echo cancellation unavailable");
+        notify(tr("Echo cancellation unavailable. Use headphones to avoid echo."), true);
     }
 
     if (!SdlAudioSubsystem::acquire()) {
@@ -326,6 +348,7 @@ void SDLCALL MicrophoneStream::captureCallback(void* userdata, Uint8* stream, in
 void MicrophoneStream::encoderThreadMain()
 {
     float frame[MicEncoder::FrameSamples];
+    float farFrame[MicEncoder::FrameSamples];
     unsigned char packet[MIC_MAX_OPUS_FRAME_BYTES];
 
     bool checkBlockedCapture = kDetectBlockedCapture;
@@ -363,6 +386,12 @@ void MicrophoneStream::encoderThreadMain()
                                 "Microphone delivered only silence for 3 seconds");
                     notify(tr(u8"No audio from your microphone. It may be muted or blocked in Windows Settings \u2192 Privacy & security \u2192 Microphone."), true);
                 }
+            }
+
+            if (m_EchoCanceller.active()) {
+                m_FarEnd.popFrame(farFrame);
+                m_EchoCanceller.processReverse(farFrame);
+                m_EchoCanceller.processCapture(frame);
             }
 
             int len = m_Encoder.encode(frame, packet, sizeof(packet));

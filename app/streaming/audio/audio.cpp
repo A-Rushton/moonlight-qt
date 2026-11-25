@@ -217,6 +217,9 @@ void Session::arDecodeAndPlaySample(char* sampleData, int sampleLength)
         if (samplesDecoded > 0) {
             SDL_assert(desiredBufferSize >= frameSize * samplesDecoded);
             desiredBufferSize = frameSize * samplesDecoded;
+
+            s_ActiveSession->pushMicFarEnd(buffer, samplesDecoded,
+                                           s_ActiveSession->m_AudioRenderer->getAudioBufferFormat() == IAudioRenderer::AudioFormat::Float32NE);
         }
         else {
             desiredBufferSize = 0;
