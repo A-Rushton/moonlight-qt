@@ -6,6 +6,8 @@ VERSION=2.1
 URL=https://freedesktop.org/software/pulseaudio/webrtc-audio-processing/webrtc-audio-processing-$VERSION.tar.xz
 SHA256=ae9302824b2038d394f10213cab05312c564a038434269f11dbf68f511f9f9fe
 ARCHS="arm64 x86_64"
+# clang accepts the C++20 designated initializers as an extension; abseil must match
+CPP_STD=c++17
 
 SOURCE_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 OUT_DIR=$SOURCE_ROOT/libs/webrtc-apm/mac
@@ -16,7 +18,7 @@ fail()
 	exit 1
 }
 
-if [ "$(cat "$OUT_DIR/VERSION" 2>/dev/null)" == "$VERSION" ]; then
+if [ -f "$OUT_DIR/lib/libwebrtc-apm.a" ] && [ "$(cat "$OUT_DIR/VERSION" 2>/dev/null)" == "$VERSION" ]; then
 	echo "webrtc-audio-processing $VERSION already built"
 	exit 0
 fi
@@ -73,7 +75,9 @@ EOF
 		--buildtype=release \
 		--default-library=static \
 		--prefix "$WORK_DIR/install-$ARCH" \
-		-Dwrap_mode=forcefallback
+		-Dwrap_mode=forcefallback \
+		-Dcpp_std=$CPP_STD \
+		-Dabseil-cpp:cpp_std=$CPP_STD
 	meson compile -C "$BUILD_DIR"
 	meson install -C "$BUILD_DIR" --quiet
 

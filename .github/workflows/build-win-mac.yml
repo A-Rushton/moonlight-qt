@@ -76,11 +76,11 @@ jobs:
         uses: actions/cache@v4
         with:
           path: libs/webrtc-apm
-          key: webrtc-apm-${{ runner.os }}-${{ hashFiles('scripts/build-webrtc-apm.*') }}
+          key: webrtc-apm-${{ runner.os }}-${{ matrix.qt_version }}-${{ hashFiles(runner.os == 'Windows' && 'scripts/build-webrtc-apm.ps1' || 'scripts/build-webrtc-apm.sh') }}
 
       - name: Build webrtc-audio-processing (Windows)
         if: runner.os == 'Windows'
-        run: powershell ./scripts/build-webrtc-apm.ps1
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/build-webrtc-apm.ps1
 
       - name: Build webrtc-audio-processing (macOS)
         if: runner.os == 'macOS'

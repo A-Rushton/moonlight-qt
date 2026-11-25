@@ -5,9 +5,11 @@ $Version = "2.1"
 $Url = "https://freedesktop.org/software/pulseaudio/webrtc-audio-processing/webrtc-audio-processing-$Version.tar.xz"
 $Sha256 = "ae9302824b2038d394f10213cab05312c564a038434269f11dbf68f511f9f9fe"
 $Targets = @(
-    @{ Name = "windows-x64"; VcArch = "amd64"; CpuFamily = "x86_64"; Cpu = "x86_64"; Machine = "X64" },
-    @{ Name = "windows-arm64"; VcArch = "arm64"; CpuFamily = "aarch64"; Cpu = "arm64"; Machine = "ARM64" }
+    @{ Name = "windows-x64"; VcArch = "amd64"; TgtArch = "x64"; CpuFamily = "x86_64"; Cpu = "x86_64"; Machine = "X64" },
+    @{ Name = "windows-arm64"; VcArch = "arm64"; TgtArch = "arm64"; CpuFamily = "aarch64"; Cpu = "arm64"; Machine = "ARM64" }
 )
+# webrtc needs C++20 under MSVC (designated initializers); abseil must match
+$CppStd = "c++20"
 
 $SourceRoot = Split-Path -Parent $PSScriptRoot
 $OutRoot = Join-Path $SourceRoot "libs\webrtc-apm"
@@ -22,10 +24,11 @@ function Invoke-Native {
 
 function Test-Built($Target) {
     $VersionFile = Join-Path $OutRoot "$($Target.Name)\VERSION"
-    (Test-Path $VersionFile) -and ((Get-Content $VersionFile -Raw).Trim() -eq $Version)
+    (Test-Path (Join-Path $OutRoot "$($Target.Name)\lib\webrtc-apm.lib")) -and
+        (Test-Path $VersionFile) -and ((Get-Content $VersionFile -Raw).Trim() -eq $Version)
 }
 
-function Import-VcVars($VcVarsAll, $Arch, $WorkDir) {
+function Import-VcVars($VcVarsAll, $Arch, $TgtArch, $WorkDir) {
     $Bat = Join-Path $WorkDir "vcvars-$Arch.bat"
     Set-Content -Path $Bat -Encoding ASCII -Value @(
         "@echo off",
@@ -41,6 +44,9 @@ function Import-VcVars($VcVarsAll, $Arch, $WorkDir) {
         if ($Index -gt 0) {
             [Environment]::SetEnvironmentVariable($Line.Substring(0, $Index), $Line.Substring($Index + 1), 'Process')
         }
+    }
+    if ($env:VSCMD_ARG_TGT_ARCH -ne $TgtArch) {
+        throw "vcvarsall.bat $Arch targets '$env:VSCMD_ARG_TGT_ARCH', expected '$TgtArch'"
     }
     if (-not (Get-Command cl.exe -ErrorAction SilentlyContinue)) {
         throw "cl.exe not found after vcvarsall.bat $Arch"
@@ -123,7 +129,10 @@ try {
                 "system = 'windows'",
                 "cpu_family = '$($Target.CpuFamily)'",
                 "cpu = '$($Target.Cpu)'",
-                "endian = 'little'"
+                "endian = 'little'",
+                "",
+                "[properties]",
+                "skip_sanity_check = true"
             )
         }
         Set-Content -Path $MachineFile -Encoding ASCII -Value $MachineLines
@@ -132,10 +141,11 @@ try {
         $Prefix = Join-Path $WorkDir "i-$Name"
         $SavedEnv = Save-Environment
         try {
-            Import-VcVars $VcVarsAll $VcArg $WorkDir
+            Import-VcVars $VcVarsAll $VcArg $Target.TgtArch $WorkDir
             Invoke-Native "meson" @("setup", $BuildDir, $SrcDir, $MachineArg, $MachineFile,
                 "--buildtype=release", "--default-library=static", "-Db_vscrt=md",
-                "-Dwrap_mode=forcefallback", "--prefix", $Prefix)
+                "-Dwrap_mode=forcefallback", "-Dcpp_std=$CppStd", "-Dabseil-cpp:cpp_std=$CppStd",
+                "--prefix", $Prefix)
             Invoke-Native "meson" @("compile", "-C", $BuildDir)
             Invoke-Native "meson" @("install", "-C", $BuildDir, "--quiet")
 
@@ -156,9 +166,11 @@ try {
             }
             New-Item -ItemType Directory -Path (Join-Path $OutDir "lib") | Out-Null
 
-            $LibArgs = @("/NOLOGO", "/MACHINE:$($Target.Machine)", "/OUT:$(Join-Path $OutDir 'lib\webrtc-apm.lib')", $MainLib[0].FullName)
-            $LibArgs += $AbslLibs | ForEach-Object { $_.FullName }
-            Invoke-Native "lib.exe" $LibArgs
+            $Rsp = Join-Path $WorkDir "lib-$Name.rsp"
+            $RspLines = @("/NOLOGO", "/MACHINE:$($Target.Machine)", "/OUT:`"$(Join-Path $OutDir 'lib\webrtc-apm.lib')`"")
+            $RspLines += @($MainLib) + $AbslLibs | ForEach-Object { "`"$($_.FullName)`"" }
+            Set-Content -Path $Rsp -Encoding ASCII -Value $RspLines
+            Invoke-Native "lib.exe" @("@$Rsp")
         } finally {
             Restore-Environment $SavedEnv
         }
