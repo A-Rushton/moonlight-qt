@@ -3,11 +3,14 @@
 #include <opus.h>
 
 #include <atomic>
+#include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <random>
 #include <thread>
 #include <vector>
 
+#include "micechocanceller.h"
 #include "micencoder.h"
 #include "micring.h"
 
@@ -211,6 +214,92 @@ private slots:
         std::vector<float> in(FRAME, 0.0f);
         unsigned char out[1000];
         QVERIFY(enc.encode(in.data(), out, sizeof(out)) < 0);
+    }
+
+    void echoIsCancelled()
+    {
+        MicEchoCanceller aec;
+        QVERIFY(aec.init());
+        QVERIFY(aec.active());
+        aec.setStreamDelayMs(100);
+
+        constexpr size_t total = 8 * 48000;
+        constexpr size_t delay = 4800;
+        std::vector<float> far(total);
+        uint32_t state = 12345;
+        for (size_t i = 0; i < total; i++) {
+            state = state * 1664525u + 1013904223u;
+            float noise = (static_cast<int32_t>(state) / 2147483648.0f);
+            float env = 0.5f + 0.5f * std::sin(2.0 * M_PI * 4.0 * i / 48000.0);
+            far[i] = 0.6f * env * noise;
+        }
+
+        double inEnergy = 0, outEnergy = 0;
+        const size_t measureFrom = total - 3 * 48000;
+        for (size_t pos = 0; pos + FRAME <= total; pos += FRAME) {
+            std::vector<float> cap(FRAME);
+            for (size_t i = 0; i < FRAME; i++) {
+                size_t n = pos + i;
+                cap[i] = n >= delay ? 0.5f * far[n - delay] : 0.0f;
+            }
+            std::vector<float> in = cap;
+            aec.processReverse(far.data() + pos);
+            aec.processCapture(cap.data());
+            if (pos >= measureFrom) {
+                for (size_t i = 0; i < FRAME; i++) {
+                    inEnergy += static_cast<double>(in[i]) * in[i];
+                    outEnergy += static_cast<double>(cap[i]) * cap[i];
+                }
+            }
+        }
+        double erle = 10.0 * std::log10(inEnergy / std::max(outEnergy, 1e-20));
+        qInfo("ERLE %.2f dB", erle);
+        QVERIFY2(erle >= 20.0, qPrintable(QString::number(erle)));
+    }
+
+    void nearEndPreserved()
+    {
+        MicEchoCanceller aec;
+        QVERIFY(aec.init());
+        aec.setStreamDelayMs(100);
+
+        constexpr size_t total = 6 * 48000;
+        std::vector<float> silence(FRAME, 0.0f);
+        double inEnergy = 0, outEnergy = 0;
+        for (size_t pos = 0; pos + FRAME <= total; pos += FRAME) {
+            std::vector<float> cap(FRAME);
+            for (size_t i = 0; i < FRAME; i++) {
+                double t = (pos + i) / 48000.0;
+                double amp = 0.175 + 0.125 * std::sin(2.0 * M_PI * 4.0 * t);
+                cap[i] = static_cast<float>(amp * std::sin(2.0 * M_PI * 440.0 * t));
+            }
+            std::vector<float> in = cap;
+            aec.processReverse(silence.data());
+            aec.processCapture(cap.data());
+            if (pos >= total - 3 * 48000) {
+                for (size_t i = 0; i < FRAME; i++) {
+                    inEnergy += static_cast<double>(in[i]) * in[i];
+                    outEnergy += static_cast<double>(cap[i]) * cap[i];
+                }
+            }
+        }
+        double diff = 10.0 * std::log10(outEnergy / inEnergy);
+        qInfo("near-end delta %.2f dB", diff);
+        QVERIFY2(std::fabs(diff) <= 10.0, qPrintable(QString::number(diff)));
+    }
+
+    void uninitialisedPassesThrough()
+    {
+        MicEchoCanceller aec;
+        QVERIFY(!aec.active());
+        std::vector<float> frame(FRAME);
+        for (size_t i = 0; i < FRAME; i++) {
+            frame[i] = std::sin(0.01f * i);
+        }
+        std::vector<float> copy = frame;
+        aec.processReverse(frame.data());
+        aec.processCapture(frame.data());
+        QCOMPARE(std::memcmp(frame.data(), copy.data(), FRAME * sizeof(float)), 0);
     }
 };
 
