@@ -1,4 +1,5 @@
 #include "sdl.h"
+#include "../sdlaudiosubsystem.h"
 
 #include <Limelight.h>
 
@@ -6,9 +7,7 @@ SdlAudioRenderer::SdlAudioRenderer()
     : m_AudioDevice(0),
       m_AudioBuffer(nullptr)
 {
-    SDL_assert(!SDL_WasInit(SDL_INIT_AUDIO));
-
-    if (SDL_InitSubSystem(SDL_INIT_AUDIO) != 0) {
+    if (!SdlAudioSubsystem::acquire()) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
                      "SDL_InitSubSystem(SDL_INIT_AUDIO) failed: %s",
                      SDL_GetError());
@@ -84,8 +83,7 @@ SdlAudioRenderer::~SdlAudioRenderer()
         SDL_free(m_AudioBuffer);
     }
 
-    SDL_QuitSubSystem(SDL_INIT_AUDIO);
-    SDL_assert(!SDL_WasInit(SDL_INIT_AUDIO));
+    SdlAudioSubsystem::release();
 }
 
 void* SdlAudioRenderer::getAudioBuffer(int*)

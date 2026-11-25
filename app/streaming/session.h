@@ -9,7 +9,12 @@
 #include "input/input.h"
 #include "video/decoder.h"
 #include "audio/renderers/renderer.h"
+#include "audio/microphone.h"
 #include "video/overlaymanager.h"
+
+#include <deque>
+#include <memory>
+#include <mutex>
 
 class SupportedVideoFormatList : public QList<int>
 {
@@ -125,6 +130,8 @@ public:
 
     void setShouldExit(bool quitHostApp = false);
 
+    MicStatus getMicStatus() const;
+
 signals:
     void stageStarting(QString stage);
 
@@ -151,6 +158,14 @@ private:
     bool validateLaunch(SDL_Window* testWindow);
 
     void emitLaunchWarning(QString text);
+
+    void startMicrophone();
+
+    void stopMicrophone();
+
+    void postMicMessage(const QString& text, bool launchWarning);
+
+    void updateMicMessage();
 
     bool populateDecoderProperties(SDL_Window* window);
 
@@ -280,6 +295,12 @@ private:
     Uint32 m_DropAudioEndTime;
 
     Overlay::OverlayManager m_OverlayManager;
+
+    std::unique_ptr<MicrophoneStream> m_Microphone;
+    std::mutex m_MicMessageLock;
+    std::deque<QString> m_MicMessages;
+    bool m_MicMessageShowing;
+    Uint32 m_MicMessageEndTime;
 
     static CONNECTION_LISTENER_CALLBACKS k_ConnCallbacks;
     static Session* s_ActiveSession;

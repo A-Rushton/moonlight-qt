@@ -28,6 +28,9 @@
 #define SDL_CODE_GAMECONTROLLER_SET_MOTION_EVENT_STATE 103
 #define SDL_CODE_GAMECONTROLLER_SET_CONTROLLER_LED 104
 #define SDL_CODE_GAMECONTROLLER_SET_ADAPTIVE_TRIGGERS 105
+#define SDL_CODE_MIC_MESSAGE 106
+
+#define MIC_MESSAGE_DURATION_MS 5000
 
 #include <openssl/rand.h>
 
@@ -584,7 +587,9 @@ Session::Session(NvComputer* computer, NvApp& app, StreamingPreferences *prefere
       m_OpusDecoder(nullptr),
       m_AudioRenderer(nullptr),
       m_AudioSampleCount(0),
-      m_DropAudioEndTime(0)
+      m_DropAudioEndTime(0),
+      m_MicMessageShowing(false),
+      m_MicMessageEndTime(0)
 {
 }
 
@@ -722,6 +727,8 @@ bool Session::initialize(QQuickWindow* qtWindow)
     m_AudioCallbacks.cleanup = arCleanup;
     m_AudioCallbacks.decodeAndPlaySample = arDecodeAndPlaySample;
     m_AudioCallbacks.capabilities = getAudioRendererCapabilities(m_StreamConfig.audioConfiguration);
+
+    m_StreamConfig.enableMicrophone = m_Preferences->enableMicrophone;
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
                 "Audio channel count: %d",
@@ -966,6 +973,87 @@ void Session::emitLaunchWarning(QString text)
         m_LaunchWarnings.append(text);
         emit launchWarningsChanged();
     }
+}
+
+MicStatus Session::getMicStatus() const
+{
+    return m_Microphone ? m_Microphone->status() : MicStatus::Off;
+}
+
+void Session::startMicrophone()
+{
+    if (!m_Preferences->enableMicrophone) {
+        return;
+    }
+
+    m_Microphone.reset(new MicrophoneStream(m_Preferences->microphoneDevice));
+    m_Microphone->setMessageHandler([this](const QString& text, bool launchWarning) {
+        postMicMessage(text, launchWarning);
+    });
+    m_Microphone->start();
+}
+
+void Session::stopMicrophone()
+{
+    if (m_Microphone) {
+        m_Microphone->stop();
+    }
+}
+
+void Session::postMicMessage(const QString& text, bool launchWarning)
+{
+    // Launch warnings are no longer displayed once the stream has started,
+    // so these are shown on the status overlay instead
+    if (launchWarning && !m_Preferences->configurationWarnings) {
+        return;
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(m_MicMessageLock);
+        m_MicMessages.push_back(text);
+    }
+
+    SDL_Event event = {};
+    event.type = SDL_USEREVENT;
+    event.user.code = SDL_CODE_MIC_MESSAGE;
+    SDL_PushEvent(&event);
+}
+
+void Session::updateMicMessage()
+{
+    if (m_MicMessageShowing) {
+        if (!SDL_TICKS_PASSED(SDL_GetTicks(), m_MicMessageEndTime)) {
+            return;
+        }
+
+        m_MicMessageShowing = false;
+        if (m_MouseEmulationRefCount == 0) {
+            m_OverlayManager.setOverlayState(Overlay::OverlayStatusUpdate, false);
+        }
+    }
+
+    // Messages queued before the renderer exists would never be drawn
+    if (m_VideoDecoder == nullptr || m_MouseEmulationRefCount > 0) {
+        return;
+    }
+
+    QString text;
+    {
+        std::lock_guard<std::mutex> lock(m_MicMessageLock);
+        if (m_MicMessages.empty()) {
+            return;
+        }
+        text = m_MicMessages.front();
+        m_MicMessages.pop_front();
+    }
+
+    // The overlay font has no arrow glyph
+    text.replace(QChar(0x2192), QLatin1Char('>'));
+
+    m_OverlayManager.updateOverlayText(Overlay::OverlayStatusUpdate, text.toUtf8().constData());
+    m_OverlayManager.setOverlayState(Overlay::OverlayStatusUpdate, true);
+    m_MicMessageShowing = true;
+    m_MicMessageEndTime = SDL_GetTicks() + MIC_MESSAGE_DURATION_MS;
 }
 
 bool Session::validateLaunch(SDL_Window* testWindow)
@@ -1286,6 +1374,9 @@ private:
         // try to interact with APIs that can only be called between
         // LiStartConnection() and LiStopConnection().
         SDL_assert(m_Session->m_VideoDecoder == nullptr);
+
+        // Nothing may be sent on the microphone stream after this point
+        m_Session->stopMicrophone();
 
         // Finish cleanup of the connection state
         LiStopConnection();
@@ -1974,6 +2065,9 @@ void Session::exec()
     // Toggle the stats overlay if requested by the user
     m_OverlayManager.setOverlayState(Overlay::OverlayDebug, m_Preferences->showPerformanceOverlay);
 
+    // The microphone stream exists only after LiStartConnection() succeeds
+    startMicrophone();
+
     // Switch to async logging mode when we enter the SDL loop
     StreamUtils::enterAsyncLoggingMode();
 
@@ -1981,6 +2075,8 @@ void Session::exec()
     // because we want to suspend all Qt processing until the stream is over.
     SDL_Event event;
     for (;;) {
+        updateMicMessage();
+
 #if SDL_VERSION_ATLEAST(2, 0, 18) && !defined(STEAM_LINK)
         // SDL 2.0.18 has a proper wait event implementation that uses platform
         // support to block on events rather than polling on Windows, macOS, X11,
@@ -2052,6 +2148,9 @@ void Session::exec()
             case SDL_CODE_GAMECONTROLLER_SET_ADAPTIVE_TRIGGERS:
                 m_InputHandler->setAdaptiveTriggers((uint16_t)(uintptr_t)event.user.data1,
                                                     (DualSenseOutputReport *)event.user.data2);
+                break;
+            case SDL_CODE_MIC_MESSAGE:
+                // Displayed by updateMicMessage()
                 break;
             default:
                 SDL_assert(false);
@@ -2260,6 +2359,11 @@ void Session::exec()
             m_InputHandler->updatePointerRegionLock();
 
             SDL_UnlockMutex(m_DecoderLock);
+
+            // A new renderer only draws the status overlay on its next update
+            if (m_OverlayManager.isOverlayEnabled(Overlay::OverlayStatusUpdate)) {
+                m_OverlayManager.setOverlayTextUpdated(Overlay::OverlayStatusUpdate);
+            }
             break;
 
         case SDL_KEYUP:
@@ -2313,6 +2417,12 @@ void Session::exec()
         case SDL_FINGERUP:
             m_InputHandler->handleTouchFingerEvent(&event.tfinger);
             break;
+        case SDL_AUDIODEVICEREMOVED:
+            // Playback device loss is handled by the audio renderer itself
+            if (event.adevice.iscapture && m_Microphone) {
+                m_Microphone->handleDeviceRemoved(event.adevice.which);
+            }
+            break;
         case SDL_DISPLAYEVENT:
             switch (event.display.event) {
             case SDL_DISPLAYEVENT_CONNECTED:
@@ -2325,6 +2435,9 @@ void Session::exec()
     }
 
 DispatchDeferredCleanup:
+    // Stop capturing immediately; this must happen before LiStopConnection()
+    stopMicrophone();
+
     // Switch back to synchronous logging mode
     StreamUtils::exitAsyncLoggingMode();
 

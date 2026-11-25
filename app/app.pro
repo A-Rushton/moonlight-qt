@@ -195,6 +195,7 @@ SOURCES += \
     streaming/session.cpp \
     streaming/audio/audio.cpp \
     streaming/audio/micencoder.cpp \
+    streaming/audio/microphone.cpp \
     streaming/audio/renderers/sdlaud.cpp \
     gui/computermodel.cpp \
     gui/appmodel.cpp \
@@ -233,7 +234,10 @@ HEADERS += \
     streaming/input/input.h \
     streaming/session.h \
     streaming/audio/micencoder.h \
+    streaming/audio/micpermission.h \
     streaming/audio/micring.h \
+    streaming/audio/microphone.h \
+    streaming/audio/sdlaudiosubsystem.h \
     streaming/audio/renderers/renderer.h \
     streaming/audio/renderers/sdl.h \
     gui/computermodel.h \
@@ -419,6 +423,9 @@ macx {
 
     HEADERS += \
         streaming/video/ffmpeg-renderers/vt.h
+}
+macx {
+    SOURCES += streaming/audio/micpermission_mac.mm
 }
 discord-rpc {
     message(Discord integration enabled)
