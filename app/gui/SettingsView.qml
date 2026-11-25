@@ -7,6 +7,7 @@ import StreamingPreferences 1.0
 import ComputerManager 1.0
 import SdlGamepadKeyNavigation 1.0
 import SystemProperties 1.0
+import MicrophoneDevices 1.0
 
 Flickable {
     id: settingsPage
@@ -964,6 +965,61 @@ Flickable {
                     ToolTip.timeout: 5000
                     ToolTip.visible: hovered
                     ToolTip.text: qsTr("Mutes Moonlight's audio when you Alt+Tab out of the stream or click on a different window.")
+                }
+
+                CheckBox {
+                    id: enableMicrophoneCheck
+                    width: parent.width
+                    text: qsTr("Stream microphone to host")
+                    font.pointSize: 12
+                    checked: StreamingPreferences.enableMicrophone
+                    onCheckedChanged: {
+                        StreamingPreferences.enableMicrophone = checked
+                    }
+                }
+
+                Label {
+                    width: parent.width
+                    text: qsTr("Microphone")
+                    font.pointSize: 12
+                    wrapMode: Text.Wrap
+                    enabled: enableMicrophoneCheck.checked
+                }
+
+                MicrophoneDevices {
+                    id: microphoneDevices
+                }
+
+                AutoResizingComboBox {
+                    id: microphoneComboBox
+                    enabled: enableMicrophoneCheck.checked
+                    model: [qsTr("System default")]
+
+                    function refreshDevices() {
+                        var saved = StreamingPreferences.microphoneDevice
+                        var devices = microphoneDevices.captureDevices()
+                        if (saved !== "" && devices.indexOf(saved) < 0) {
+                            devices.push(saved)
+                        }
+                        devices.unshift(qsTr("System default"))
+                        model = devices
+                        currentIndex = saved === "" ? 0 : devices.indexOf(saved)
+                        recalculateWidth()
+                    }
+
+                    Component.onCompleted: refreshDevices()
+
+                    onDownChanged: {
+                        if (down) {
+                            refreshDevices()
+                        }
+                    }
+
+                    // ::onActivated must be used, as it only listens for when the index is changed by a human
+                    onActivated: {
+                        StreamingPreferences.microphoneDevice = currentIndex === 0 ? "" : model[currentIndex]
+                        recalculateWidth()
+                    }
                 }
             }
         }
