@@ -53,6 +53,15 @@ function Import-VcVars($VcVarsAll, $Arch, $TgtArch, $WorkDir) {
     }
 }
 
+function Edit-Source($Path, $Find, $Replace) {
+    $Text = [IO.File]::ReadAllText($Path)
+    $Index = $Text.IndexOf($Find, [StringComparison]::Ordinal)
+    if ($Index -lt 0 -or $Text.IndexOf($Find, $Index + 1, [StringComparison]::Ordinal) -ge 0) {
+        throw "Expected exactly one match for the patch in $Path"
+    }
+    [IO.File]::WriteAllText($Path, $Text.Substring(0, $Index) + $Replace + $Text.Substring($Index + $Find.Length))
+}
+
 function Save-Environment {
     $Saved = @{}
     Get-ChildItem env: | ForEach-Object { $Saved[$_.Name] = $_.Value }
@@ -105,6 +114,11 @@ try {
     }
     Invoke-Native "python" @("-c", "import sys, tarfile; t = tarfile.open(sys.argv[1]); t.extractall(sys.argv[2], **({'filter': 'data'} if hasattr(tarfile, 'data_filter') else {}))", $Archive, $WorkDir)
     $SrcDir = Join-Path $WorkDir "webrtc-audio-processing-$Version"
+
+    # MSVC has no GCC inline asm for the ARM FPCR access, so leave denormals alone there
+    Edit-Source (Join-Path $SrcDir "webrtc\system_wrappers\source\denormal_disabler.cc") `
+        "    defined(WEBRTC_ARCH_ARM_FAMILY)`n#define WEBRTC_DENORMAL_DISABLER_SUPPORTED" `
+        "    (defined(WEBRTC_ARCH_ARM_FAMILY) && !defined(_MSC_VER))`n#define WEBRTC_DENORMAL_DISABLER_SUPPORTED"
 
     foreach ($Target in $Pending) {
         $Name = $Target.Name
