@@ -3,6 +3,8 @@
 set -euo pipefail
 
 VERSION=2.1
+# Bump when the local patches change so cached builds are replaced
+BUILD_ID=$VERSION-1
 URL=https://freedesktop.org/software/pulseaudio/webrtc-audio-processing/webrtc-audio-processing-$VERSION.tar.xz
 SHA256=ae9302824b2038d394f10213cab05312c564a038434269f11dbf68f511f9f9fe
 ARCHS="arm64 x86_64"
@@ -18,8 +20,14 @@ fail()
 	exit 1
 }
 
-if [ -f "$OUT_DIR/lib/libwebrtc-apm.a" ] && [ "$(cat "$OUT_DIR/VERSION" 2>/dev/null)" == "$VERSION" ]; then
-	echo "webrtc-audio-processing $VERSION already built"
+edit_source()
+{
+	[ "$(grep -cF -- "$2" "$1")" == "1" ] || fail "Expected exactly one match for the patch in $1"
+	FIND="$2" REPLACE="$3" perl -0pi -e 's/\Q$ENV{FIND}\E/$ENV{REPLACE}/' "$1"
+}
+
+if [ -f "$OUT_DIR/lib/libwebrtc-apm.a" ] && [ "$(cat "$OUT_DIR/VERSION" 2>/dev/null)" == "$BUILD_ID" ]; then
+	echo "webrtc-audio-processing $BUILD_ID already built"
 	exit 0
 fi
 
@@ -40,6 +48,18 @@ curl -fsSL --retry 3 -o "$WORK_DIR/src.tar.xz" "$URL"
 echo "$SHA256  $WORK_DIR/src.tar.xz" | shasum -a 256 -c - || fail "Checksum mismatch for $URL"
 tar -xf "$WORK_DIR/src.tar.xz" -C "$WORK_DIR"
 SRC_DIR=$WORK_DIR/webrtc-audio-processing-$VERSION
+
+# Expose AEC3 tuning through a factory that takes an EchoCanceller3Config
+cp "$SOURCE_ROOT/scripts/webrtc-apm/echo_canceller3_factory.h" "$SRC_DIR/webrtc/api/audio/"
+cp "$SOURCE_ROOT/scripts/webrtc-apm/echo_canceller3_factory.cc" "$SRC_DIR/webrtc/modules/audio_processing/aec3/"
+edit_source "$SRC_DIR/webrtc/api/meson.build" \
+	"['audio', 'echo_control.h']," \
+	"['audio', 'echo_control.h'],
+  ['audio', 'echo_canceller3_factory.h'],"
+edit_source "$SRC_DIR/webrtc/modules/audio_processing/meson.build" \
+	"'aec3/echo_canceller3.cc'," \
+	"'aec3/echo_canceller3.cc',
+  'aec3/echo_canceller3_factory.cc',"
 
 MERGED=()
 for ARCH in $ARCHS; do
@@ -98,5 +118,5 @@ INC_DIR=$WORK_DIR/install-arm64/include
 [ -d "$INC_DIR/absl" ] || fail "abseil headers were not installed"
 cp -R "$INC_DIR/webrtc-audio-processing-2" "$OUT_DIR/include"
 cp -R "$INC_DIR/absl" "$OUT_DIR/include/absl"
-echo "$VERSION" > "$OUT_DIR/VERSION"
+echo "$BUILD_ID" > "$OUT_DIR/VERSION"
 echo "Built $OUT_DIR"

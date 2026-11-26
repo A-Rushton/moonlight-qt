@@ -76,7 +76,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: libs/webrtc-apm
-          key: webrtc-apm-${{ runner.os }}-${{ matrix.qt_version }}-${{ hashFiles(runner.os == 'Windows' && 'scripts/build-webrtc-apm.ps1' || 'scripts/build-webrtc-apm.sh') }}
+          key: webrtc-apm-${{ runner.os }}-${{ matrix.qt_version }}-${{ hashFiles(runner.os == 'Windows' && 'scripts/build-webrtc-apm.ps1' || 'scripts/build-webrtc-apm.sh', 'scripts/webrtc-apm/**') }}
 
       - name: Build webrtc-audio-processing (Windows)
         if: runner.os == 'Windows'

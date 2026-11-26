@@ -13,6 +13,9 @@
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #endif
 #include <modules/audio_processing/include/audio_processing.h>
+#ifdef HAVE_WEBRTC_AEC3_FACTORY
+#include <api/audio/echo_canceller3_factory.h>
+#endif
 #if defined(__GNUC__)
 #pragma GCC diagnostic pop
 #endif
@@ -20,6 +23,21 @@
 namespace {
 
 constexpr int kSampleRate = 48000;
+
+#ifdef HAVE_WEBRTC_AEC3_FACTORY
+// Speakers with their own DSP (soundbars, TVs) leave a long, poorly modelled
+// echo tail, so use a longer filter and let near-end speech win double-talk.
+webrtc::EchoCanceller3Config makeEchoConfig()
+{
+    webrtc::EchoCanceller3Config config;
+    config.filter.refined.length_blocks = 20;
+    config.filter.coarse.length_blocks = 20;
+    config.suppressor.dominant_nearend_detection.enr_threshold = .75f;
+    config.suppressor.dominant_nearend_detection.trigger_threshold = 6;
+    config.suppressor.dominant_nearend_detection.hold_duration = 100;
+    return config;
+}
+#endif
 
 }
 
@@ -47,7 +65,12 @@ bool MicEchoCanceller::init()
     config.gain_controller2.adaptive_digital.enabled = true;
     config.high_pass_filter.enabled = true;
 
-    impl->apm = webrtc::AudioProcessingBuilder().SetConfig(config).Create();
+    webrtc::AudioProcessingBuilder builder;
+    builder.SetConfig(config);
+#ifdef HAVE_WEBRTC_AEC3_FACTORY
+    builder.SetEchoControlFactory(std::make_unique<webrtc::EchoCanceller3Factory>(makeEchoConfig()));
+#endif
+    impl->apm = builder.Create();
     if (!impl->apm) {
         SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                     "Failed to create audio processor");

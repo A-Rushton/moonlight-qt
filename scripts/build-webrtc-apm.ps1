@@ -2,6 +2,8 @@
 $ErrorActionPreference = 'Stop'
 
 $Version = "2.1"
+# Bump when the local patches change so cached builds are replaced
+$BuildId = "$Version-1"
 $Url = "https://freedesktop.org/software/pulseaudio/webrtc-audio-processing/webrtc-audio-processing-$Version.tar.xz"
 $Sha256 = "ae9302824b2038d394f10213cab05312c564a038434269f11dbf68f511f9f9fe"
 $Targets = @(
@@ -25,7 +27,7 @@ function Invoke-Native {
 function Test-Built($Target) {
     $VersionFile = Join-Path $OutRoot "$($Target.Name)\VERSION"
     (Test-Path (Join-Path $OutRoot "$($Target.Name)\lib\webrtc-apm.lib")) -and
-        (Test-Path $VersionFile) -and ((Get-Content $VersionFile -Raw).Trim() -eq $Version)
+        (Test-Path $VersionFile) -and ((Get-Content $VersionFile -Raw).Trim() -eq $BuildId)
 }
 
 function Import-VcVars($VcVarsAll, $Arch, $TgtArch, $WorkDir) {
@@ -79,7 +81,7 @@ function Restore-Environment($Saved) {
 
 $Pending = @($Targets | Where-Object { -not (Test-Built $_) })
 if ($Pending.Count -eq 0) {
-    Write-Host "webrtc-audio-processing $Version already built" -ForegroundColor Green
+    Write-Host "webrtc-audio-processing $BuildId already built" -ForegroundColor Green
     exit 0
 }
 
@@ -114,6 +116,17 @@ try {
     }
     Invoke-Native "python" @("-c", "import sys, tarfile; t = tarfile.open(sys.argv[1]); t.extractall(sys.argv[2], **({'filter': 'data'} if hasattr(tarfile, 'data_filter') else {}))", $Archive, $WorkDir)
     $SrcDir = Join-Path $WorkDir "webrtc-audio-processing-$Version"
+
+    # Expose AEC3 tuning through a factory that takes an EchoCanceller3Config
+    $PatchDir = Join-Path $PSScriptRoot "webrtc-apm"
+    Copy-Item -Path (Join-Path $PatchDir "echo_canceller3_factory.h") -Destination (Join-Path $SrcDir "webrtc\api\audio")
+    Copy-Item -Path (Join-Path $PatchDir "echo_canceller3_factory.cc") -Destination (Join-Path $SrcDir "webrtc\modules\audio_processing\aec3")
+    Edit-Source (Join-Path $SrcDir "webrtc\api\meson.build") `
+        "  ['audio', 'echo_control.h'],`n" `
+        "  ['audio', 'echo_control.h'],`n  ['audio', 'echo_canceller3_factory.h'],`n"
+    Edit-Source (Join-Path $SrcDir "webrtc\modules\audio_processing\meson.build") `
+        "  'aec3/echo_canceller3.cc',`n" `
+        "  'aec3/echo_canceller3.cc',`n  'aec3/echo_canceller3_factory.cc',`n"
 
     # MSVC has no GCC inline asm for the ARM FPCR access, so leave denormals alone there
     Edit-Source (Join-Path $SrcDir "webrtc\system_wrappers\source\denormal_disabler.cc") `
@@ -203,7 +216,7 @@ try {
         }
         Copy-Item -Path (Join-Path $IncDir "webrtc-audio-processing-2") -Destination (Join-Path $OutDir "include") -Recurse
         Copy-Item -Path (Join-Path $IncDir "absl") -Destination (Join-Path $OutDir "include\absl") -Recurse
-        Set-Content -Path (Join-Path $OutDir "VERSION") -Encoding ASCII -Value $Version
+        Set-Content -Path (Join-Path $OutDir "VERSION") -Encoding ASCII -Value $BuildId
         Write-Host "Built $OutDir" -ForegroundColor Green
     }
 } finally {

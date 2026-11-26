@@ -175,7 +175,7 @@ win32 {
     # NOMINMAX is defined where the headers are included to avoid clashing with dxva2.cpp
     INCLUDEPATH += $$WEBRTC_APM_DIR/include
     LIBS += $$WEBRTC_APM_DIR/lib/webrtc-apm.lib
-    DEFINES += HAVE_WEBRTC_APM WEBRTC_WIN _USE_MATH_DEFINES __STDC_FORMAT_MACROS=1
+    DEFINES += HAVE_WEBRTC_APM HAVE_WEBRTC_AEC3_FACTORY WEBRTC_WIN _USE_MATH_DEFINES __STDC_FORMAT_MACROS=1
 }
 macx:!disable-prebuilts {
     WEBRTC_APM_DIR = $$PWD/../libs/webrtc-apm/mac
@@ -185,7 +185,7 @@ macx:!disable-prebuilts {
 
     INCLUDEPATH += $$WEBRTC_APM_DIR/include
     LIBS += $$WEBRTC_APM_DIR/lib/libwebrtc-apm.a -framework CoreFoundation
-    DEFINES += HAVE_WEBRTC_APM WEBRTC_POSIX WEBRTC_MAC
+    DEFINES += HAVE_WEBRTC_APM HAVE_WEBRTC_AEC3_FACTORY WEBRTC_POSIX WEBRTC_MAC
 }
 unix:if(!macx|disable-prebuilts):!config_SL {
     packagesExist(webrtc-audio-processing-2) {
