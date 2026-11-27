@@ -1,14 +1,19 @@
-# Builds webrtc-audio-processing as static libraries in libs\webrtc-apm\windows-{x64,arm64}
+# Builds webrtc-audio-processing as release and debug-CRT static libraries in libs\webrtc-apm\windows-{x64,arm64}
 $ErrorActionPreference = 'Stop'
 
 $Version = "2.1"
 # Bump when the local patches change so cached builds are replaced
-$BuildId = "$Version-1"
+$BuildId = "$Version-2"
 $Url = "https://freedesktop.org/software/pulseaudio/webrtc-audio-processing/webrtc-audio-processing-$Version.tar.xz"
 $Sha256 = "ae9302824b2038d394f10213cab05312c564a038434269f11dbf68f511f9f9fe"
 $Targets = @(
     @{ Name = "windows-x64"; VcArch = "amd64"; TgtArch = "x64"; CpuFamily = "x86_64"; Cpu = "x86_64"; Machine = "X64"; Guard = @("/guard:cf", "/guard:ehcont") },
     @{ Name = "windows-arm64"; VcArch = "arm64"; TgtArch = "arm64"; CpuFamily = "aarch64"; Cpu = "arm64"; Machine = "ARM64"; Guard = @("/guard:cf", "/guard:ehcont", "/guard:signret") }
+)
+# Debug apps link the debug CRT (/MDd), which a /MD static lib can't mix with
+$Variants = @(
+    @{ Lib = "webrtc-apm.lib"; Crt = "md"; Suffix = "" },
+    @{ Lib = "webrtc-apm-debug.lib"; Crt = "mdd"; Suffix = "-debug" }
 )
 # webrtc needs C++20 under MSVC (designated initializers); abseil must match
 $CppStd = "c++20"
@@ -25,9 +30,14 @@ function Invoke-Native {
 }
 
 function Test-Built($Target) {
-    $VersionFile = Join-Path $OutRoot "$($Target.Name)\VERSION"
-    (Test-Path (Join-Path $OutRoot "$($Target.Name)\lib\webrtc-apm.lib")) -and
-        (Test-Path $VersionFile) -and ((Get-Content $VersionFile -Raw).Trim() -eq $BuildId)
+    $OutDir = Join-Path $OutRoot $Target.Name
+    $VersionFile = Join-Path $OutDir "VERSION"
+    foreach ($Variant in $Variants) {
+        if (-not (Test-Path (Join-Path $OutDir "lib\$($Variant.Lib)"))) {
+            return $false
+        }
+    }
+    (Test-Path $VersionFile) -and ((Get-Content $VersionFile -Raw).Trim() -eq $BuildId)
 }
 
 function Import-VcVars($VcVarsAll, $Arch, $TgtArch, $WorkDir) {
@@ -172,44 +182,49 @@ try {
         )
         Set-Content -Path $MachineFile -Encoding ASCII -Value $MachineLines
 
-        $BuildDir = Join-Path $WorkDir "b-$Name"
-        $Prefix = Join-Path $WorkDir "i-$Name"
+        $OutDir = Join-Path $OutRoot $Name
+        if (Test-Path $OutDir) {
+            Remove-Item -Path $OutDir -Recurse -Force
+        }
+        New-Item -ItemType Directory -Path (Join-Path $OutDir "lib") | Out-Null
+
         $SavedEnv = Save-Environment
         try {
             Import-VcVars $VcVarsAll $VcArg $Target.TgtArch $WorkDir
-            Invoke-Native "meson" @("setup", $BuildDir, $SrcDir, $MachineArg, $MachineFile,
-                "--buildtype=release", "--default-library=static", "-Db_vscrt=md",
-                "-Dwrap_mode=forcefallback", "-Dcpp_std=$CppStd", "-Dabseil-cpp:cpp_std=$CppStd",
-                "--prefix", $Prefix)
-            Invoke-Native "meson" @("compile", "-C", $BuildDir)
-            Invoke-Native "meson" @("install", "-C", $BuildDir, "--quiet")
+            foreach ($Variant in $Variants) {
+                $Tag = "$Name$($Variant.Suffix)"
+                $BuildDir = Join-Path $WorkDir "b-$Tag"
+                $Prefix = Join-Path $WorkDir "i-$Tag"
+                Invoke-Native "meson" @("setup", $BuildDir, $SrcDir, $MachineArg, $MachineFile,
+                    "--buildtype=release", "--default-library=static", "-Db_vscrt=$($Variant.Crt)",
+                    "-Dwrap_mode=forcefallback", "-Dcpp_std=$CppStd", "-Dabseil-cpp:cpp_std=$CppStd",
+                    "--prefix", $Prefix)
+                Invoke-Native "meson" @("compile", "-C", $BuildDir)
+                Invoke-Native "meson" @("install", "-C", $BuildDir, "--quiet")
 
-            $MainLib = @(Get-ChildItem -Path (Join-Path $Prefix "lib") -File |
-                Where-Object { $_.Name -match '^(lib)?webrtc-audio-processing-2\.(a|lib)$' })
-            if ($MainLib.Count -ne 1) {
-                throw "webrtc-audio-processing library not found for $Name"
-            }
-            $AbslLibs = @(Get-ChildItem -Path (Join-Path $BuildDir "subprojects") -Recurse -File |
-                Where-Object { $_.Extension -in @(".a", ".lib") } | Sort-Object FullName)
-            if ($AbslLibs.Count -eq 0) {
-                throw "No abseil libraries found for $Name"
-            }
+                $MainLib = @(Get-ChildItem -Path (Join-Path $Prefix "lib") -File |
+                    Where-Object { $_.Name -match '^(lib)?webrtc-audio-processing-2\.(a|lib)$' })
+                if ($MainLib.Count -ne 1) {
+                    throw "webrtc-audio-processing library not found for $Tag"
+                }
+                $AbslLibs = @(Get-ChildItem -Path (Join-Path $BuildDir "subprojects") -Recurse -File |
+                    Where-Object { $_.Extension -in @(".a", ".lib") } | Sort-Object FullName)
+                if ($AbslLibs.Count -eq 0) {
+                    throw "No abseil libraries found for $Tag"
+                }
 
-            $OutDir = Join-Path $OutRoot $Name
-            if (Test-Path $OutDir) {
-                Remove-Item -Path $OutDir -Recurse -Force
+                $Rsp = Join-Path $WorkDir "lib-$Tag.rsp"
+                $OutLib = Join-Path $OutDir "lib\$($Variant.Lib)"
+                $RspLines = @("/NOLOGO", "/MACHINE:$($Target.Machine)", "/OUT:`"$OutLib`"")
+                $RspLines += @($MainLib) + $AbslLibs | ForEach-Object { "`"$($_.FullName)`"" }
+                Set-Content -Path $Rsp -Encoding ASCII -Value $RspLines
+                Invoke-Native "lib.exe" @("@$Rsp")
             }
-            New-Item -ItemType Directory -Path (Join-Path $OutDir "lib") | Out-Null
-
-            $Rsp = Join-Path $WorkDir "lib-$Name.rsp"
-            $RspLines = @("/NOLOGO", "/MACHINE:$($Target.Machine)", "/OUT:`"$(Join-Path $OutDir 'lib\webrtc-apm.lib')`"")
-            $RspLines += @($MainLib) + $AbslLibs | ForEach-Object { "`"$($_.FullName)`"" }
-            Set-Content -Path $Rsp -Encoding ASCII -Value $RspLines
-            Invoke-Native "lib.exe" @("@$Rsp")
         } finally {
             Restore-Environment $SavedEnv
         }
 
+        # Headers are identical across CRT variants, so take the last one installed
         $IncDir = Join-Path $Prefix "include"
         if (-not (Test-Path (Join-Path $IncDir "absl"))) {
             throw "abseil headers were not installed for $Name"

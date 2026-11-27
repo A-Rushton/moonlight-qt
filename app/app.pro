@@ -168,13 +168,15 @@ macx {
 win32 {
     contains(QT_ARCH, x86_64): WEBRTC_APM_DIR = $$PWD/../libs/webrtc-apm/windows-x64
     contains(QT_ARCH, arm64): WEBRTC_APM_DIR = $$PWD/../libs/webrtc-apm/windows-arm64
-    !exists($$WEBRTC_APM_DIR/lib/webrtc-apm.lib) {
-        error("Missing $$WEBRTC_APM_DIR. Please run 'powershell .\scripts\build-webrtc-apm.ps1'.")
+    CONFIG(debug, debug|release): WEBRTC_APM_LIB = $$WEBRTC_APM_DIR/lib/webrtc-apm-debug.lib
+    else: WEBRTC_APM_LIB = $$WEBRTC_APM_DIR/lib/webrtc-apm.lib
+    !exists($$WEBRTC_APM_LIB) {
+        error("Missing $$WEBRTC_APM_LIB. Please run 'powershell .\scripts\build-webrtc-apm.ps1'.")
     }
 
     # NOMINMAX is defined where the headers are included to avoid clashing with dxva2.cpp
     INCLUDEPATH += $$WEBRTC_APM_DIR/include
-    LIBS += $$WEBRTC_APM_DIR/lib/webrtc-apm.lib
+    LIBS += $$WEBRTC_APM_LIB
     DEFINES += HAVE_WEBRTC_APM HAVE_WEBRTC_AEC3_FACTORY WEBRTC_WIN _USE_MATH_DEFINES __STDC_FORMAT_MACROS=1
 }
 macx:!disable-prebuilts {
