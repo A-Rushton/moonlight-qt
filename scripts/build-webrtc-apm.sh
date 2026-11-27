@@ -4,7 +4,7 @@ set -euo pipefail
 
 VERSION=2.1
 # Bump when the local patches change so cached builds are replaced
-BUILD_ID=$VERSION-1
+BUILD_ID=$VERSION-2
 URL=https://freedesktop.org/software/pulseaudio/webrtc-audio-processing/webrtc-audio-processing-$VERSION.tar.xz
 SHA256=ae9302824b2038d394f10213cab05312c564a038434269f11dbf68f511f9f9fe
 ARCHS="arm64 x86_64"
