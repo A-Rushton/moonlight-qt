@@ -31,7 +31,7 @@ macx {
     !exists($$APM_DIR/lib/libwebrtc-apm.a) {
         error("libs/webrtc-apm/mac is missing; run scripts/build-webrtc-apm.sh")
     }
-    DEFINES += HAVE_WEBRTC_APM WEBRTC_POSIX WEBRTC_MAC
+    DEFINES += HAVE_WEBRTC_APM HAVE_WEBRTC_AEC3_FACTORY WEBRTC_POSIX WEBRTC_MAC
     INCLUDEPATH += $$APM_DIR/include
     LIBS += $$APM_DIR/lib/libwebrtc-apm.a -framework CoreFoundation
     QMAKE_RPATHDIR += $$LIBS_DIR/lib
