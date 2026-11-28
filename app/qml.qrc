@@ -20,5 +20,19 @@
         <file>gui/CenteredGridView.qml</file>
         <file>gui/CliPair.qml</file>
         <file>gui/Theme.qml</file>
+        <file>gui/DeskButton.qml</file>
+        <file>gui/DeskIconButton.qml</file>
+        <file>gui/DeskSwitch.qml</file>
+        <file>gui/DeskComboBox.qml</file>
+        <file>gui/DeskSlider.qml</file>
+        <file>gui/DeskTextField.qml</file>
+        <file>gui/DeskDialog.qml</file>
+        <file>gui/DeskMenu.qml</file>
+        <file>gui/DeskMenuItem.qml</file>
+        <file>gui/DeskSidebarItem.qml</file>
+        <file>gui/DeskListRow.qml</file>
+        <file>gui/DeskPanel.qml</file>
+        <file>gui/DeskFocusRing.qml</file>
+        <file>gui/DeskIcon.qml</file>
     </qresource>
 </RCC>

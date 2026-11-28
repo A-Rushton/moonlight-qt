@@ -1,12 +1,13 @@
 import QtQuick 2.9
-import QtQuick.Controls 2.2
+import QtQuick.Controls 2.14
 
 import SdlGamepadKeyNavigation 1.0
 
 // https://stackoverflow.com/questions/45029968/how-do-i-set-the-combobox-width-to-fit-the-largest-item
-ComboBox {
+DeskComboBox {
     property int textWidth
-    property int desiredWidth : leftPadding + textWidth + indicator.width + rightPadding
+    // The indicator's space is included in the padding
+    property int desiredWidth : leftPadding + textWidth + rightPadding
     property int maximumWidth : parent.width
 
     implicitWidth: desiredWidth < maximumWidth ? desiredWidth : maximumWidth
@@ -26,8 +27,8 @@ ComboBox {
         for (var i = 0; i < count; i++){
             textMetrics.text = textAt(i)
             popupMetrics.text = textAt(i)
-            textWidth = Math.max(textMetrics.width, textWidth)
-            textWidth = Math.max(popupMetrics.width, textWidth)
+            textWidth = Math.max(Math.ceil(textMetrics.width), textWidth)
+            textWidth = Math.max(Math.ceil(popupMetrics.width), textWidth)
         }
     }
 

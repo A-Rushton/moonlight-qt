@@ -1,6 +1,8 @@
 import QtQuick 2.0
-import QtQuick.Controls 2.2
+import QtQuick.Controls 2.14
 import QtQuick.Layouts 1.2
+
+import DeskTheme 1.0
 
 NavigableDialog {
     id: dialog
@@ -13,20 +15,32 @@ NavigableDialog {
     property string helpUrl : "https://github.com/moonlight-stream/moonlight-docs/wiki/Troubleshooting"
     property string helpTextSeparator : " "
 
+    readonly property int iconSize: 32
+
+    navigableButtons: true
+
     onOpened: {
         // Force keyboard focus on the label so keyboard navigation works
-        if (dialogButtonBox.count > 0) {
-            dialogButtonBox.itemAt(dialogButtonBox.count - 1).forceActiveFocus(Qt.TabFocus)
+        if (footer.count > 0) {
+            footer.itemAt(footer.count - 1).forceActiveFocus(Qt.TabFocus)
         }
     }
 
+    onHelpRequested: {
+        Qt.openUrlExternally(helpUrl)
+        close()
+    }
+
     RowLayout {
-        spacing: 10
+        spacing: 14
 
         BusyIndicator {
             id: dialogSpinner
             visible: false
             running: visible
+            Layout.preferredWidth: dialog.iconSize
+            Layout.preferredHeight: dialog.iconSize
+            Layout.alignment: Qt.AlignTop
         }
 
         Image {
@@ -36,10 +50,11 @@ NavigableDialog {
                         "qrc:/res/baseline-error_outline-24px.svg"
             sourceSize {
                 // The icon should be square so use the height as the width too
-                width: 50
-                height: 50
+                width: dialog.iconSize
+                height: dialog.iconSize
             }
             visible: !showSpinner
+            Layout.alignment: Qt.AlignTop
         }
 
         Label {
@@ -49,30 +64,15 @@ NavigableDialog {
             text: dialogText + ((helpText && (standardButtons & Dialog.Help)) ? (helpTextSeparator + helpText) : "")
             wrapMode: Text.Wrap
             elide: Label.ElideRight
+            font.pixelSize: Theme.fontBase
+            lineHeight: 1.3
+            color: Theme.text
 
             // Cap the width so the dialog doesn't grow horizontally forever. This
             // will cause word wrap to kick in.
-            Layout.maximumWidth: 400
+            Layout.maximumWidth: dialog.maximumWidth - dialog.leftPadding - dialog.rightPadding -
+                                 dialog.iconSize - parent.spacing
             Layout.maximumHeight: 400
-        }
-    }
-
-    footer: DialogButtonBox {
-        id: dialogButtonBox
-        standardButtons: dialog.standardButtons
-
-        delegate: Button {
-            flat: true
-
-            Keys.onReturnPressed: clicked()
-            Keys.onEnterPressed: clicked()
-            Keys.onRightPressed: nextItemInFocusChain(true).forceActiveFocus(Qt.TabFocus)
-            Keys.onLeftPressed: nextItemInFocusChain(false).forceActiveFocus(Qt.TabFocus)
-        }
-
-        onHelpRequested: {
-            Qt.openUrlExternally(helpUrl)
-            close()
         }
     }
 }
