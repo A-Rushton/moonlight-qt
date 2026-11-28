@@ -1,7 +1,15 @@
 <RCC>
     <qresource prefix="/">
         <file>gui/main.qml</file>
-        <file>gui/PcView.qml</file>
+        <file>gui/LibraryView.qml</file>
+        <file>gui/HostSidebar.qml</file>
+        <file>gui/HostPane.qml</file>
+        <file>gui/HostHeader.qml</file>
+        <file>gui/OfflinePanel.qml</file>
+        <file>gui/PairingPanel.qml</file>
+        <file>gui/EmptyHosts.qml</file>
+        <file>gui/AddHostDialog.qml</file>
+        <file>gui/HostDialogs.qml</file>
         <file>gui/AppView.qml</file>
         <file>gui/SettingsView.qml</file>
         <file>gui/StreamSegue.qml</file>
