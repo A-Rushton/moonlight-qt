@@ -16,7 +16,11 @@ class ComputerModel : public QAbstractListModel
         WakeableRole,
         StatusUnknownRole,
         ServerSupportedRole,
-        DetailsRole
+        DetailsRole,
+        UuidRole,
+        AddressRole,
+        MacAddressRole,
+        AppCountRole
     };
 
 public:
@@ -30,6 +34,8 @@ public:
     int rowCount(const QModelIndex &parent) const override;
 
     virtual QHash<int, QByteArray> roleNames() const override;
+
+    Q_INVOKABLE int indexOfUuid(QString uuid) const;
 
     Q_INVOKABLE void deleteComputer(int computerIndex);
 

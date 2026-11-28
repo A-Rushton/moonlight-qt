@@ -82,6 +82,32 @@ QVariant ComputerModel::data(const QModelIndex& index, int role) const
                tr("Running Game ID: %1").arg(computer->state == NvComputer::CS_ONLINE ? QString::number(computer->currentGameId) : tr("Unknown")) + '\n' +
                tr("HTTPS Port: %1").arg(computer->state == NvComputer::CS_ONLINE ? QString::number(computer->activeHttpsPort) : tr("Unknown"));
     }
+    case UuidRole:
+        return computer->uuid;
+    case AddressRole: {
+        const NvAddress& address = computer->activeAddress.isNull() ? computer->localAddress
+                                                                    : computer->activeAddress;
+        if (address.isNull()) {
+            return QString();
+        }
+        if (address.port() == DEFAULT_HTTP_PORT) {
+            return QHostAddress(address.address()).protocol() == QAbstractSocket::IPv6Protocol
+                    ? QString("[%1]").arg(address.address())
+                    : address.address();
+        }
+        return address.toString();
+    }
+    case MacAddressRole:
+        return QString(computer->macAddress.toHex(':').toUpper());
+    case AppCountRole: {
+        int count = 0;
+        for (const NvApp& app : computer->appList) {
+            if (!app.hidden) {
+                count++;
+            }
+        }
+        return count;
+    }
     default:
         return QVariant();
     }
@@ -110,8 +136,24 @@ QHash<int, QByteArray> ComputerModel::roleNames() const
     names[StatusUnknownRole] = "statusUnknown";
     names[ServerSupportedRole] = "serverSupported";
     names[DetailsRole] = "details";
+    names[UuidRole] = "uuid";
+    names[AddressRole] = "address";
+    names[MacAddressRole] = "macAddress";
+    names[AppCountRole] = "appCount";
 
     return names;
+}
+
+int ComputerModel::indexOfUuid(QString uuid) const
+{
+    for (int i = 0; i < m_Computers.count(); i++) {
+        QReadLocker lock(&m_Computers[i]->lock);
+        if (m_Computers[i]->uuid == uuid) {
+            return i;
+        }
+    }
+
+    return -1;
 }
 
 Session* ComputerModel::createSessionForCurrentGame(int computerIndex)
