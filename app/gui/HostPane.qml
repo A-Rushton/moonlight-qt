@@ -8,13 +8,13 @@ import DeskTheme 1.0
 FocusScope {
     id: pane
 
-    property int computerIndex: -1
     // Snapshot of the selected ComputerModel row, refreshed by LibraryView whenever the row changes
     property var computer: null
     property string pairingPin
     property bool otherPairingActive: false
+    // Include hidden apps ("View all apps")
+    property bool showAllApps: false
 
-    // Filled by the apps view when the host is online and paired
     readonly property alias appsArea: appsArea
 
     readonly property string hostState: !computer ? ""
@@ -30,22 +30,22 @@ FocusScope {
     signal wakeHelpRequested()
     signal pairRequested()
     signal cancelPairingRequested()
+    signal viewAllAppsRequested()
 
-    function showApps() {
-        if (computerIndex < 0) {
-            return
-        }
+    function launchDirectApp() {
+        return hostState === "apps" && appsPane.launchDirectApp()
+    }
 
-        var component = Qt.createComponent("AppView.qml")
-        var appView = component.createObject(stackView, {"computerIndex": computerIndex, "objectName": computer.name})
-        stackView.push(appView)
+    // Lets go of the host's app list before the host itself is deleted
+    function releaseApps() {
+        appsPane.releaseModel()
     }
 
     function focusFirst(reason) {
-        if (hostState === "apps") {
-            showAppsButton.forceActiveFocus(reason)
-        }
-        else if (!(stateLoader.item && stateLoader.item.focusPrimary && stateLoader.item.focusPrimary(reason))) {
+        var focused = hostState === "apps"
+                ? appsPane.focusFirst(reason)
+                : stateLoader.item && stateLoader.item.focusPrimary && stateLoader.item.focusPrimary(reason)
+        if (!focused) {
             header.menuButton.forceActiveFocus(reason)
         }
     }
@@ -155,17 +155,19 @@ FocusScope {
             FocusScope {
                 id: appsArea
                 Layout.fillWidth: true
-                implicitHeight: childrenRect.height
+                implicitHeight: appsPane.implicitHeight
                 visible: pane.hostState === "apps"
                 focus: pane.hostState === "apps"
 
-                DeskButton {
-                    id: showAppsButton
+                AppsPane {
+                    id: appsPane
+                    width: parent.width
                     focus: true
-                    variant: "primary"
-                    iconName: "grid"
-                    text: qsTr("Show apps")
-                    onClicked: pane.showApps()
+                    computer: pane.computer
+                    active: pane.hostState === "apps"
+                    showHiddenGames: pane.showAllApps
+                    onShowHiddenGamesRequested: pane.viewAllAppsRequested()
+                    onSidebarFocusRequested: pane.sidebarFocusRequested()
                 }
             }
         }

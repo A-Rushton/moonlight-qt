@@ -9,12 +9,35 @@ AppModel::AppModel(QObject *parent)
 
 void AppModel::initialize(ComputerManager* computerManager, int computerIndex, bool showHiddenGames)
 {
+    QVector<NvComputer*> computers = computerManager->getComputers();
+    Q_ASSERT(computerIndex >= 0 && computerIndex < computers.count());
+    initializeForComputer(computerManager, computers.at(computerIndex), showHiddenGames);
+}
+
+bool AppModel::initializeForUuid(ComputerManager* computerManager, QString uuid, bool showHiddenGames)
+{
+    const QVector<NvComputer*> computers = computerManager->getComputers();
+    for (NvComputer* computer : computers) {
+        QReadLocker lock(&computer->lock);
+        if (computer->uuid == uuid) {
+            lock.unlock();
+            initializeForComputer(computerManager, computer, showHiddenGames);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void AppModel::initializeForComputer(ComputerManager* computerManager, NvComputer* computer, bool showHiddenGames)
+{
+    Q_ASSERT(m_Computer == nullptr);
+
     m_ComputerManager = computerManager;
     connect(m_ComputerManager, &ComputerManager::computerStateChanged,
             this, &AppModel::handleComputerStateChanged);
 
-    Q_ASSERT(computerIndex >= 0 && computerIndex < m_ComputerManager->getComputers().count());
-    m_Computer = m_ComputerManager->getComputers().at(computerIndex);
+    m_Computer = computer;
     m_CurrentGameId = m_Computer->currentGameId;
     m_ShowHiddenGames = showHiddenGames;
 

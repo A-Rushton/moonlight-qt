@@ -14,6 +14,8 @@ FocusScope {
     property string selectedUuid
     property int selectedIndex: -1
     property var selectedComputer: null
+    // "View all apps" for the selected host
+    property bool showAllApps: false
 
     // Pairing runs in the background, so remember which host it is for and its PIN
     property string pairingUuid
@@ -23,6 +25,8 @@ FocusScope {
     property string focusArea: "sidebar"
 
     objectName: qsTr("Hosts")
+
+    onSelectedUuidChanged: showAllApps = false
 
     // Note: Any initialization done here that is critical for streaming must
     // also be done in CliStartStreamSegue.qml, since this code does not run
@@ -43,6 +47,7 @@ FocusScope {
         model.connectionTestCompleted.connect(hostDialogs.connectionTestComplete)
         model.modelReset.connect(scheduleSync)
         model.rowsInserted.connect(scheduleSync)
+        model.rowsAboutToBeRemoved.connect(hostAboutToBeRemoved)
         model.rowsRemoved.connect(scheduleSync)
         model.dataChanged.connect(scheduleSync)
         return model
@@ -64,6 +69,13 @@ FocusScope {
 
     function scheduleSync() {
         Qt.callLater(syncSelection)
+    }
+
+    function hostAboutToBeRemoved(parent, first, last) {
+        var index = selectedUuid !== "" ? computerModel.indexOfUuid(selectedUuid) : -1
+        if (index >= first && index <= last) {
+            hostPane.releaseApps()
+        }
     }
 
     function snapshot(row, index) {
@@ -132,22 +144,14 @@ FocusScope {
         }
     }
 
+    // Clicking or pressing Enter on a host starts its direct launch app; moving focus with the arrows does not
     function activateHost(index) {
         selectHost(index)
 
         var computer = selectedComputer
-        if (computer && computer.index === index && computer.online && computer.paired &&
-                computer.serverSupported && hasDirectLaunchApp(index)) {
-            hostPane.showApps()
+        if (computer && computer.index === index) {
+            hostPane.launchDirectApp()
         }
-    }
-
-    function hasDirectLaunchApp(index) {
-        var appModel = Qt.createQmlObject('import AppModel 1.0; AppModel {}', library, '')
-        appModel.initialize(ComputerManager, index, false)
-        var result = appModel.getDirectLaunchAppIndex() >= 0
-        appModel.destroy()
-        return result
     }
 
     function startPairing() {
@@ -290,8 +294,8 @@ FocusScope {
             anchors.fill: parent
             visible: library.selectedComputer !== null
             focus: visible
-            computerIndex: library.selectedIndex
             computer: library.selectedComputer
+            showAllApps: library.showAllApps
             pairingPin: library.selectedComputer && library.pairingUuid === library.selectedComputer.uuid
                         ? library.pairingPin : ""
             otherPairingActive: library.pairingUuid !== "" && pairingPin === ""
@@ -302,6 +306,7 @@ FocusScope {
             onWakeHelpRequested: library.openHelp()
             onPairRequested: library.startPairing()
             onCancelPairingRequested: library.cancelPairing()
+            onViewAllAppsRequested: library.showAllApps = true
         }
 
         EmptyHosts {
@@ -320,14 +325,9 @@ FocusScope {
         id: hostDialogs
         computerModel: library.computerModel
         pageActive: library.StackView.status === StackView.Active
+        showingAllApps: library.showAllApps
 
-        onViewAllAppsRequested: {
-            var component = Qt.createComponent("AppView.qml")
-            var appView = component.createObject(stackView, {"computerIndex": computerIndex,
-                                                             "objectName": library.selectedComputer ? library.selectedComputer.name : "",
-                                                             "showHiddenGames": true})
-            stackView.push(appView)
-        }
+        onViewAllAppsToggled: library.showAllApps = !library.showAllApps
     }
 
     AddHostDialog {

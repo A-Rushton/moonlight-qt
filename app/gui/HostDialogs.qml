@@ -11,8 +11,10 @@ Item {
     property var computerModel
     // Whether the owning page is the current StackView page
     property bool pageActive: true
+    // Whether the selected host currently lists hidden apps too
+    property bool showingAllApps: false
 
-    signal viewAllAppsRequested(int computerIndex)
+    signal viewAllAppsToggled()
 
     readonly property bool anyOpen: hostMenu.visible || errorDialog.visible || deleteDialog.visible ||
                                     renameDialog.visible || testConnectionDialog.visible || detailsDialog.visible
@@ -51,6 +53,8 @@ Item {
         hostMenu.computer = computer
         hostMenu.anchor = anchor
         hostMenu.viaKeyboard = viaKeyboard
+        // Triggering a checkable item breaks its binding, so set the state on every open
+        viewAllAppsItem.checked = showingAllApps
         // Position from the anchor rather than parenting to it, since a model reset can destroy sidebar rows
         var origin = anchor.mapToItem(hostDialogs, 0, 0)
         hostMenu.x = anchor.width < hostMenu.width ? origin.x + anchor.width - hostMenu.width : origin.x
@@ -127,14 +131,11 @@ Item {
         }
 
         NavigableMenuItem {
+            id: viewAllAppsItem
             text: qsTr("View all apps")
+            checkable: true
             visible: hostMenu.online && hostMenu.computer.paired
-            onTriggered: {
-                var index = hostDialogs.indexOf(hostMenu.computer)
-                if (index >= 0) {
-                    hostDialogs.viewAllAppsRequested(index)
-                }
-            }
+            onTriggered: hostDialogs.viewAllAppsToggled()
         }
         NavigableMenuItem {
             text: qsTr("Wake host")

@@ -14,8 +14,7 @@ ApplicationWindow {
     property bool pollingActive: false
 
     // Set by SettingsView to force the back operation to pop all
-    // pages except the initial view. This is required when doing
-    // a retranslate() because AppView breaks for some reason.
+    // pages except the initial view after a retranslate().
     property bool clearOnBack: false
 
     // Set once AutoUpdateChecker finds a newer release

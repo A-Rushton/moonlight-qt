@@ -24,7 +24,8 @@ Button {
         DeskIcon {
             anchors.centerIn: parent
             name: control.iconName
-            color: control.hovered || control.visualFocus ? Theme.text : Theme.mutedStrong
+            color: control.highlighted ? Theme.accent
+                 : control.hovered || control.visualFocus ? Theme.text : Theme.mutedStrong
         }
     }
 
@@ -32,7 +33,7 @@ Button {
         implicitWidth: 36
         implicitHeight: 36
         radius: Theme.radiusControl
-        color: control.down ? Theme.borderStrong : control.hovered ? Theme.selected : Theme.raised
+        color: control.down ? Theme.borderStrong : control.hovered || control.highlighted ? Theme.selected : Theme.raised
         border.width: 1
         border.color: Theme.borderStrong
 
