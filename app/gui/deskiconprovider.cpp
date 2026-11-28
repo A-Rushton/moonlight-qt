@@ -1,6 +1,7 @@
 #include "deskiconprovider.h"
 
 #include <QColor>
+#include <QDebug>
 #include <QFile>
 #include <QPainter>
 #include <QSvgRenderer>
