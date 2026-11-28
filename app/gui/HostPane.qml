@@ -131,7 +131,7 @@ FocusScope {
             id: content
             x: 32
             y: 28
-            width: Math.min(880 - 64, scroller.width - 64)
+            width: Math.max(0, scroller.width - 64)
             spacing: 28
 
             Loader {

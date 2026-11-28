@@ -298,7 +298,7 @@ FocusScope {
             id: contentScope
             x: 40
             y: 32
-            width: Math.max(0, Math.min(720, scroller.width - 80))
+            width: Math.max(0, scroller.width - 80)
             height: contentColumn.height
 
             onActiveFocusChanged: {
