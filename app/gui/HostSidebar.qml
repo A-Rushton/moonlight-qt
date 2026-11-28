@@ -228,8 +228,8 @@ FocusScope {
             }
 
             DeskSidebarItem {
-            width: parent.width
                 id: addHostItem
+                width: parent.width
                 text: qsTr("Add host")
                 iconName: "plus"
                 onClicked: sidebar.addHostRequested()
@@ -289,8 +289,10 @@ FocusScope {
             onClicked: sidebar.discordRequested()
         }
 
+        // Hidden until the gamepad mapper exists; GamepadMapper.qml is still a stub
         DeskSidebarItem {
             width: parent.width
+            visible: false
             text: qsTr("Controllers")
             iconName: "gamepad"
             onClicked: sidebar.controllersRequested()

@@ -51,9 +51,10 @@ Item {
         hostMenu.computer = computer
         hostMenu.anchor = anchor
         hostMenu.viaKeyboard = viaKeyboard
-        hostMenu.parent = anchor
-        hostMenu.x = Qt.binding(function() { return hostMenu.parent && hostMenu.parent.width < hostMenu.width ? hostMenu.parent.width - hostMenu.width : 0 })
-        hostMenu.y = anchor.height + 4
+        // Position from the anchor rather than parenting to it, since a model reset can destroy sidebar rows
+        var origin = anchor.mapToItem(hostDialogs, 0, 0)
+        hostMenu.x = anchor.width < hostMenu.width ? origin.x + anchor.width - hostMenu.width : origin.x
+        hostMenu.y = origin.y + anchor.height + 4
         hostMenu.open()
     }
 
