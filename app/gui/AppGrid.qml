@@ -21,6 +21,7 @@ Item {
 
     signal launchRequested(int index)
     signal menuRequested(int index, Item anchor, bool viaKeyboard)
+    signal quitRequested()
     // Up was pressed on the first row, or Left on the first column
     signal exitUp()
     signal exitLeft()
@@ -90,9 +91,18 @@ Item {
                         grid.exitLeft()
                     }
                 }
-                Keys.onRightPressed: {
+                function focusNextCard() {
                     if (visual % grid.columns < grid.columns - 1 && visual + 1 < grid.visualCount) {
                         grid.focusVisual(visual + 1, Qt.TabFocusReason)
+                    }
+                }
+
+                Keys.onRightPressed: {
+                    if (model.running) {
+                        quitButton.forceActiveFocus(Qt.TabFocusReason)
+                    }
+                    else {
+                        focusNextCard()
                     }
                 }
                 Keys.onUpPressed: {
@@ -174,6 +184,22 @@ Item {
                     anchors.fill: parent
                     acceptedButtons: Qt.RightButton
                     onClicked: grid.menuRequested(index, card, false)
+                }
+
+                DeskIconButton {
+                    id: quitButton
+                    x: poster.width - width - 8
+                    y: 8
+                    visible: model.running
+                    implicitWidth: 32
+                    implicitHeight: 32
+                    // Reached with Right from the card, so Tab and Up/Down keep stepping card to card
+                    activeFocusOnTab: false
+                    iconName: "stop"
+                    toolTipText: qsTr("Quit")
+                    onClicked: grid.quitRequested()
+                    Keys.onLeftPressed: card.forceActiveFocus(Qt.BacktabFocusReason)
+                    Keys.onRightPressed: card.focusNextCard()
                 }
             }
         }

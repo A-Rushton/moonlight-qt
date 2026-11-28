@@ -127,7 +127,7 @@ FocusScope {
 
                     Repeater {
                         model: panel.computer ? [
-                            { label: qsTr("Local address"), value: panel.computer.address || qsTr("Unknown") },
+                            { label: qsTr("Address"), value: panel.computer.address || qsTr("Unknown") },
                             { label: qsTr("MAC address"), value: panel.computer.macAddress || qsTr("Unknown") },
                             { label: qsTr("Paired"), value: panel.computer.paired ? qsTr("Yes") : qsTr("No") },
                             { label: qsTr("Apps"), value: String(panel.computer.appCount) }

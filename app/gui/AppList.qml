@@ -16,6 +16,7 @@ Item {
 
     signal launchRequested(int index)
     signal menuRequested(int index, Item anchor, bool viaKeyboard)
+    signal quitRequested()
 
     implicitHeight: column.implicitHeight + 2
 
@@ -61,13 +62,38 @@ Item {
                     return parts.join(" · ")
                 }
                 thumbnail: model.boxart ? model.boxart : "qrc:/res/no_app_image.png"
-                trailing: DeskIcon {
-                    name: "chevron-right"
-                    color: Theme.muted
-                    size: 16
+                trailing: Row {
+                    spacing: 12
+
+                    DeskIconButton {
+                        id: quitButton
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: model.running
+                        implicitWidth: 32
+                        implicitHeight: 32
+                        // Reached with Right from the row, so Up/Down keep stepping row to row
+                        activeFocusOnTab: false
+                        iconName: "stop"
+                        toolTipText: qsTr("Quit")
+                        onClicked: list.quitRequested()
+                        Keys.onLeftPressed: row.forceActiveFocus(Qt.BacktabFocusReason)
+                        Keys.onRightPressed: {}
+                    }
+
+                    DeskIcon {
+                        anchors.verticalCenter: parent.verticalCenter
+                        name: "chevron-right"
+                        color: Theme.muted
+                        size: 16
+                    }
                 }
 
                 onClicked: list.launchRequested(index)
+                Keys.onRightPressed: {
+                    if (model.running) {
+                        quitButton.forceActiveFocus(Qt.TabFocusReason)
+                    }
+                }
                 onPressAndHold: list.menuRequested(index, row, false)
                 Keys.onMenuPressed: list.menuRequested(index, row, true)
 

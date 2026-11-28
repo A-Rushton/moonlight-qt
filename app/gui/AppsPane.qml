@@ -24,8 +24,9 @@ FocusScope {
     readonly property string wantedModelKey: active && computer ? computer.uuid + (showHiddenGames ? "/all" : "") : ""
     readonly property int otherCount: appRows.count - (desktopIndex >= 0 ? 1 : 0)
     readonly property bool gridMode: StreamingPreferences.appListMode === StreamingPreferences.ALM_GRID
-    // Apps should be listed but no model could be built, e.g. the host dropped out mid-refresh
-    readonly property bool loadFailed: wantedModelKey !== "" && appModel === null
+    // The model for failedKey could not be built, e.g. the host dropped out mid-refresh
+    property string failedKey
+    readonly property bool loadFailed: failedKey !== "" && failedKey === wantedModelKey && appModel === null
 
     signal showHiddenGamesRequested()
     signal sidebarFocusRequested()
@@ -55,6 +56,7 @@ FocusScope {
     }
 
     function createModel() {
+        failedKey = ""
         if (wantedModelKey === "") {
             return
         }
@@ -62,6 +64,7 @@ FocusScope {
         var model = Qt.createQmlObject('import AppModel 1.0; AppModel {}', appsPane, '')
         if (!model.initializeForUuid(ComputerManager, computer.uuid, showHiddenGames)) {
             model.destroy()
+            failedKey = wantedModelKey
             return
         }
 
@@ -373,6 +376,7 @@ FocusScope {
             backdrop: appsPane.backdrop
             onLaunchRequested: appsPane.launch(index, true)
             onMenuRequested: appsPane.openMenu(index, anchor, viaKeyboard)
+            onQuitRequested: appsPane.quitRunningApp()
         }
     }
 
@@ -385,6 +389,7 @@ FocusScope {
             backdrop: appsPane.backdrop
             onLaunchRequested: appsPane.launch(index, true)
             onMenuRequested: appsPane.openMenu(index, anchor, viaKeyboard)
+            onQuitRequested: appsPane.quitRunningApp()
             onExitUp: gridButton.forceActiveFocus(Qt.BacktabFocusReason)
             onExitLeft: appsPane.sidebarFocusRequested()
         }
