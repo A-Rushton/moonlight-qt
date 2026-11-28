@@ -19,7 +19,7 @@ ComboBox {
 
     font.pixelSize: Theme.fontBase
 
-    opacity: enabled ? 1.0 : 0.45
+    opacity: enabled ? 1.0 : Theme.disabledOpacity
 
     delegate: ItemDelegate {
         width: ListView.view ? ListView.view.width : implicitWidth
@@ -87,7 +87,7 @@ ComboBox {
         contentItem: ListView {
             clip: true
             implicitHeight: contentHeight
-            model: control.delegateModel
+            model: control.popup.visible ? control.delegateModel : null
             currentIndex: control.highlightedIndex
             highlightMoveDuration: 0
 

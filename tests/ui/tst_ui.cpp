@@ -20,18 +20,18 @@ void TestUi::iconIsTinted()
     const QImage image = provider.requestImage(QStringLiteral("plus/4ADE80"), &size, QSize(24, 24));
     QCOMPARE(image.size(), QSize(24, 24));
 
-    bool found = false;
-    for (int y = 0; y < image.height() && !found; y++) {
-        for (int x = 0; x < image.width() && !found; x++) {
+    int opaque = 0;
+    for (int y = 0; y < image.height(); y++) {
+        for (int x = 0; x < image.width(); x++) {
             const QColor c = image.pixelColor(x, y);
             if (c.alpha() > 200) {
                 QVERIFY2(qAbs(c.red() - 0x4A) <= 2 && qAbs(c.green() - 0xDE) <= 2 && qAbs(c.blue() - 0x80) <= 2,
-                         qPrintable(c.name()));
-                found = true;
+                         qPrintable(QStringLiteral("(%1, %2) is %3").arg(x).arg(y).arg(c.name())));
+                opaque++;
             }
         }
     }
-    QVERIFY(found);
+    QVERIFY(opaque > 0);
 }
 
 void TestUi::iconHonoursRequestedSize()

@@ -24,6 +24,8 @@ FocusScope {
     readonly property string wantedModelKey: active && computer ? computer.uuid + (showHiddenGames ? "/all" : "") : ""
     readonly property int otherCount: appRows.count - (desktopIndex >= 0 ? 1 : 0)
     readonly property bool gridMode: StreamingPreferences.appListMode === StreamingPreferences.ALM_GRID
+    // Apps should be listed but no model could be built, e.g. the host dropped out mid-refresh
+    readonly property bool loadFailed: wantedModelKey !== "" && appModel === null
 
     signal showHiddenGamesRequested()
     signal sidebarFocusRequested()
@@ -31,8 +33,14 @@ FocusScope {
     implicitHeight: layout.implicitHeight
 
     onWantedModelKeyChanged: Qt.callLater(syncModel)
+    // Each host refresh retries a model that failed to build
+    onComputerChanged: {
+        if (loadFailed) {
+            Qt.callLater(syncModel)
+        }
+    }
     Component.onCompleted: syncModel()
-    Component.onDestruction: releaseModel()
+    Component.onDestruction: dropModel()
 
     function syncModel() {
         if (modelKey !== wantedModelKey) {
@@ -71,7 +79,10 @@ FocusScope {
     function releaseModel() {
         appMenu.close()
         quitAppDialog.close()
+        dropModel()
+    }
 
+    function dropModel() {
         var model = appModel
         desktopRow = null
         desktopIndex = -1
@@ -182,6 +193,10 @@ FocusScope {
     }
 
     function focusFirst(reason) {
+        if (retryButton.visible) {
+            retryButton.forceActiveFocus(reason)
+            return true
+        }
         if (desktopPanel.visible) {
             return desktopPanel.focusPrimary(reason)
         }
@@ -225,7 +240,14 @@ FocusScope {
             }
 
             onItemAdded: appsPane.scheduleDesktopUpdate()
-            onItemRemoved: appsPane.scheduleDesktopUpdate()
+            onItemRemoved: {
+                // Don't leave the Desktop panel bound to a row that is going away
+                if (item.row === appsPane.desktopRow) {
+                    appsPane.desktopRow = null
+                    appsPane.desktopIndex = -1
+                }
+                appsPane.scheduleDesktopUpdate()
+            }
         }
     }
 
@@ -316,6 +338,28 @@ FocusScope {
                 iconName: "eye-off"
                 text: qsTr("View all apps")
                 onClicked: appsPane.showHiddenGamesRequested()
+            }
+        }
+
+        ColumnLayout {
+            Layout.fillWidth: true
+            visible: appsPane.loadFailed
+            spacing: 16
+
+            Text {
+                Layout.fillWidth: true
+                text: qsTr("Couldn't load the app list for this host.")
+                font.pixelSize: Theme.fontBase
+                lineHeight: 1.3
+                color: Theme.mutedStrong
+                wrapMode: Text.Wrap
+            }
+
+            DeskButton {
+                id: retryButton
+                visible: appsPane.loadFailed
+                text: qsTr("Retry")
+                onClicked: appsPane.syncModel()
             }
         }
     }

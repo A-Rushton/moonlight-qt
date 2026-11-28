@@ -13,7 +13,7 @@ Button {
     implicitHeight: 36
     padding: 0
 
-    opacity: enabled ? 1.0 : 0.45
+    opacity: enabled ? 1.0 : Theme.disabledOpacity
 
     ToolTip.text: toolTipText
     ToolTip.delay: 1000

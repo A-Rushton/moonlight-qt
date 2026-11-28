@@ -607,15 +607,17 @@ private slots:
         monitor->setDevice(QStringLiteral("No Such Device"));
         monitor->setActive(true);
         QVERIFY(monitor->active());
-        QCoreApplication::processEvents();
-        QTest::qWait(100);
 
-        QVERIFY(!monitor->error().isEmpty());
+        const QString error = monitor->error();
+        QVERIFY(!error.isEmpty());
         QCOMPARE(errorSpy.count(), 1);
         QCOMPARE(monitor->level(), qreal(0));
 
+        // Stopping keeps the last error so the UI can still explain why there was no level
         monitor->setActive(false);
         QVERIFY(!monitor->active());
+        QCOMPARE(monitor->error(), error);
+        QCOMPARE(errorSpy.count(), 1);
         QCOMPARE(monitor->level(), qreal(0));
         monitor.reset();
     }

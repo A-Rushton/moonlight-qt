@@ -12,7 +12,7 @@ Slider {
                              implicitHandleHeight + topPadding + bottomPadding)
     padding: 4
 
-    opacity: enabled ? 1.0 : 0.45
+    opacity: enabled ? 1.0 : Theme.disabledOpacity
 
     handle: Rectangle {
         x: control.leftPadding + (control.horizontal ? control.visualPosition * (control.availableWidth - width)
@@ -22,7 +22,7 @@ Slider {
         implicitWidth: 16
         implicitHeight: 16
         radius: 8
-        color: control.pressed ? Theme.text : "#FFFFFF"
+        color: control.pressed ? Theme.text : Theme.knob
 
         DeskFocusRing {
             target: control

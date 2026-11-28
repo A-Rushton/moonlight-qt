@@ -40,7 +40,8 @@ Item {
         control.anchors.fill = slot
         if (control.maximumWidth !== undefined) {
             control.maximumWidth = Qt.binding(function() {
-                return Math.max(160, Math.floor(row.width / 2))
+                // Combos can take up to 60% of the row, leaving the rest for the title and hint
+                return Math.max(160, Math.floor(row.width * 0.6))
             })
         }
     }
@@ -64,7 +65,7 @@ Item {
                : row.width - 2 * row.horizontalPadding - slot.width - 16
         spacing: 3
         visible: row.title !== "" || row.hint !== ""
-        opacity: row.control && !row.control.enabled ? 0.45 : 1.0
+        opacity: row.control && !row.control.enabled ? Theme.disabledOpacity : 1.0
 
         Text {
             width: parent.width

@@ -21,7 +21,7 @@ TextField {
     selectionColor: Theme.accent
     selectedTextColor: Theme.accentText
 
-    opacity: enabled ? 1.0 : 0.45
+    opacity: enabled ? 1.0 : Theme.disabledOpacity
 
     background: Rectangle {
         implicitWidth: 200
@@ -34,7 +34,7 @@ TextField {
         DeskFocusRing {
             shown: control.activeFocus
             targetRadius: parent.radius
-            border.color: Qt.rgba(74 / 255, 222 / 255, 128 / 255, 0.18)
+            border.color: Theme.focusGlow
             border.width: 3
         }
     }

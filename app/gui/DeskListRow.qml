@@ -20,7 +20,7 @@ ItemDelegate {
 
     font.pixelSize: Theme.fontBase
 
-    opacity: enabled ? 1.0 : 0.45
+    opacity: enabled ? 1.0 : Theme.disabledOpacity
 
     function attachTrailing() {
         if (trailing) {

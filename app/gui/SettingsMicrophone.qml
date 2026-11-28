@@ -115,7 +115,7 @@ Column {
                 stacked: true
                 control: Column {
                     enabled: enableMicrophoneCheck.checked
-                    opacity: enabled ? 1.0 : 0.45
+                    opacity: enabled ? 1.0 : Theme.disabledOpacity
                     spacing: 10
 
                     Item {

@@ -16,6 +16,13 @@ QtObject {
     readonly property color offline: "#5B5E66"
     readonly property color link: "#7CC4FF"
     readonly property color danger: "#F87171"
+    readonly property color dialog: "#1A1B1F"
+    readonly property color switchTrackOff: "#3A3C42"
+    readonly property color knob: "#FFFFFF"
+    readonly property color focusGlow: Qt.rgba(accent.r, accent.g, accent.b, 0.18)
+    readonly property color scrim: Qt.rgba(5 / 255, 6 / 255, 8 / 255, 0.66)
+
+    readonly property real disabledOpacity: 0.45
 
     readonly property int radiusControl: 8
     readonly property int radiusPanel: 12

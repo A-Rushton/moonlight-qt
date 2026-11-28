@@ -18,7 +18,7 @@ Switch {
 
     font.pixelSize: Theme.fontBase
 
-    opacity: enabled ? 1.0 : 0.45
+    opacity: enabled ? 1.0 : Theme.disabledOpacity
 
     indicator: Rectangle {
         implicitWidth: 40
@@ -26,7 +26,7 @@ Switch {
         x: control.mirrored ? 0 : control.width - width
         y: (control.height - height) / 2
         radius: height / 2
-        color: control.checked ? Theme.accent : "#3A3C42"
+        color: control.checked ? Theme.accent : Theme.switchTrackOff
 
         Behavior on color {
             ColorAnimation { duration: 120 }
@@ -38,7 +38,7 @@ Switch {
             width: 18
             height: 18
             radius: 9
-            color: "#FFFFFF"
+            color: Theme.knob
 
             Behavior on x {
                 enabled: !control.down

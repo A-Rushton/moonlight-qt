@@ -11,6 +11,10 @@ FocusScope {
     property var computerModel
     property string selectedUuid
     property string updateToolTip
+    // Native text of the window's keyboard shortcuts, shown in tooltips
+    property string addHostShortcutText
+    property string helpShortcutText
+    property string settingsShortcutText
 
     signal hostActivated(int index)
     signal hostMenuRequested(int index, Item anchor, bool viaKeyboard)
@@ -54,6 +58,10 @@ FocusScope {
             }
         }
         return items
+    }
+
+    function withShortcut(text, shortcut) {
+        return shortcut ? text + " (" + shortcut + ")" : text
     }
 
     function moveFocus(from, delta) {
@@ -232,6 +240,12 @@ FocusScope {
                 width: parent.width
                 text: qsTr("Add host")
                 iconName: "plus"
+
+                ToolTip.text: sidebar.withShortcut(qsTr("Add PC manually"), sidebar.addHostShortcutText)
+                ToolTip.delay: 1000
+                ToolTip.timeout: 3000
+                ToolTip.visible: hovered
+
                 onClicked: sidebar.addHostRequested()
                 onActiveFocusChanged: {
                     if (activeFocus) {
@@ -257,6 +271,12 @@ FocusScope {
             visible: SystemProperties.hasBrowser
             text: qsTr("Help")
             iconName: "help"
+
+            ToolTip.text: sidebar.withShortcut(qsTr("Help"), sidebar.helpShortcutText)
+            ToolTip.delay: 1000
+            ToolTip.timeout: 3000
+            ToolTip.visible: hovered && sidebar.helpShortcutText !== ""
+
             onClicked: sidebar.helpRequested()
         }
 
@@ -302,6 +322,12 @@ FocusScope {
             width: parent.width
             text: qsTr("Settings")
             iconName: "sliders"
+
+            ToolTip.text: sidebar.withShortcut(qsTr("Settings"), sidebar.settingsShortcutText)
+            ToolTip.delay: 1000
+            ToolTip.timeout: 3000
+            ToolTip.visible: hovered && sidebar.settingsShortcutText !== ""
+
             onClicked: sidebar.settingsRequested()
         }
     }

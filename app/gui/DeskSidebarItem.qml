@@ -22,7 +22,7 @@ ItemDelegate {
     font.pixelSize: Theme.fontBase
     font.weight: Font.Medium
 
-    opacity: enabled ? 1.0 : 0.45
+    opacity: enabled ? 1.0 : Theme.disabledOpacity
 
     contentItem: Item {
         implicitWidth: (icon.visible ? icon.width + control.spacing : 0) + label.implicitWidth +

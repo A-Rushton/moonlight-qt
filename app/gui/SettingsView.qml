@@ -206,6 +206,8 @@ FocusScope {
 
                     onClicked: window.goBack()
 
+                    // Gamepad A sends Space while settings are shown
+                    Keys.onSpacePressed: window.goBack()
                     Keys.onTabPressed: settingsPage.moveNav(1, true)
                 }
 
@@ -239,6 +241,7 @@ FocusScope {
 
                         onClicked: settingsPage.currentSection = index
 
+                        Keys.onSpacePressed: settingsPage.enterSection()
                         Keys.onTabPressed: settingsPage.moveNav(1, true)
                         Keys.onBacktabPressed: settingsPage.moveNav(-1, true)
                     }
