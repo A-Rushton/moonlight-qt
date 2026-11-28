@@ -1,15 +1,15 @@
-import QtQuick 2.0
-import QtQuick.Controls 2.2
+import QtQuick 2.14
+import QtQuick.Controls 2.14
 
 import ComputerManager 1.0
 
 Item {
     function onSearchingComputer() {
-        stageLabel.text = qsTr("Establishing connection to PC...")
+        stagePanel.text = qsTr("Establishing connection to PC...")
     }
 
     function onSearchingApp() {
-        stageLabel.text = qsTr("Loading app list...")
+        stagePanel.text = qsTr("Loading app list...")
     }
 
     function onSessionCreated(appName, session) {
@@ -35,8 +35,6 @@ Item {
 
     StackView.onActivated: {
         if (!launcher.isExecuted()) {
-            toolBar.visible = false
-
             launcher.searchingComputer.connect(onSearchingComputer)
             launcher.searchingApp.connect(onSearchingApp)
             launcher.sessionCreated.connect(onSessionCreated)
@@ -46,23 +44,8 @@ Item {
         }
     }
 
-    Row {
-        anchors.centerIn: parent
-        spacing: 5
-
-        BusyIndicator {
-            id: stageSpinner
-            running: visible
-        }
-
-        Label {
-            id: stageLabel
-            height: stageSpinner.height
-            font.pointSize: 20
-            verticalAlignment: Text.AlignVCenter
-
-            wrapMode: Text.Wrap
-        }
+    SeguePanel {
+        id: stagePanel
     }
 
     ErrorMessageDialog {

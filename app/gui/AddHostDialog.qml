@@ -64,11 +64,13 @@ NavigableDialog {
 
                 Keys.onReturnPressed: {
                     if (dialog.address !== "") {
+                        dialog.closedByKeyboard = true
                         dialog.accept()
                     }
                 }
                 Keys.onEnterPressed: {
                     if (dialog.address !== "") {
+                        dialog.closedByKeyboard = true
                         dialog.accept()
                     }
                 }

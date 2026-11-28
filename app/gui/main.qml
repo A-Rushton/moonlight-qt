@@ -1,7 +1,6 @@
-import QtQuick 2.9
+import QtQuick 2.14
 import QtQuick.Controls 2.14
-import QtQuick.Layouts 1.3
-import QtQuick.Window 2.2
+import QtQuick.Window 2.14
 
 import DeskTheme 1.0
 import ComputerManager 1.0
@@ -300,62 +299,22 @@ ApplicationWindow {
         }
     }
 
-    // Pages pushed on top of the library get a slim bar to return to it; Settings has its own
-    header: Rectangle {
-        visible: stackView.depth > 1 && !(stackView.currentItem instanceof SettingsView)
-        implicitHeight: 56
-        color: Theme.bg
-
-        Rectangle {
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.bottom: parent.bottom
-            height: 1
-            color: Theme.border
-        }
-
-        RowLayout {
-            anchors.fill: parent
-            anchors.leftMargin: 12
-            anchors.rightMargin: 20
-            spacing: 12
-
-            DeskButton {
-                id: backButton
-                variant: "ghost"
-                iconName: "chevron-left"
-                text: qsTr("Back")
-                onClicked: goBack()
-
-                Keys.onReturnPressed: clicked()
-                Keys.onEnterPressed: clicked()
-                Keys.onDownPressed: stackView.currentItem.forceActiveFocus(Qt.TabFocusReason)
-            }
-
-            Label {
-                Layout.fillWidth: true
-                text: stackView.currentItem ? stackView.currentItem.objectName : ""
-                font.pixelSize: 17
-                font.weight: Font.DemiBold
-                color: Theme.text
-                elide: Label.ElideRight
-            }
-        }
-    }
-
     Shortcut {
+        id: newHostShortcut
         sequences: [StandardKey.New]
         enabled: stackView.currentItem instanceof LibraryView
         onActivated: stackView.currentItem.openAddHost()
     }
 
     Shortcut {
+        id: helpShortcut
         sequences: [StandardKey.HelpContents]
         enabled: SystemProperties.hasBrowser
         onActivated: openHelp()
     }
 
     Shortcut {
+        id: settingsShortcut
         sequences: [StandardKey.Preferences]
         onActivated: openSettings()
     }

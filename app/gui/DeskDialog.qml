@@ -4,10 +4,12 @@ import QtQuick.Controls 2.14
 import DeskTheme 1.0
 
 Dialog {
-    property string titleText
+    property string titleText: title
     property int maximumWidth: 440
     // Lets Return/Enter activate footer buttons and Left/Right move between them
     property bool navigableButtons: false
+    // Set when the dialog was dismissed from the keyboard or a gamepad
+    property bool closedByKeyboard: false
 
     id: control
 
@@ -31,8 +33,10 @@ Dialog {
 
     font.pixelSize: Theme.fontBase
 
+    onAboutToShow: closedByKeyboard = false
+
     Overlay.modal: Rectangle {
-        color: Qt.rgba(5 / 255, 6 / 255, 8 / 255, 0.66)
+        color: Theme.scrim
     }
 
     Overlay.modeless: Rectangle {
@@ -41,7 +45,7 @@ Dialog {
 
     background: Rectangle {
         radius: Theme.radiusDialog
-        color: "#1A1B1F"
+        color: Theme.dialog
         border.width: 1
         border.color: Theme.borderStrong
     }
@@ -83,8 +87,18 @@ Dialog {
                      DialogButtonBox.buttonRole === DialogButtonBox.YesRole ? "primary" : "secondary"
 
             Keys.enabled: control.navigableButtons
-            Keys.onReturnPressed: clicked()
-            Keys.onEnterPressed: clicked()
+            Keys.onReturnPressed: {
+                control.closedByKeyboard = true
+                clicked()
+            }
+            Keys.onEnterPressed: {
+                control.closedByKeyboard = true
+                clicked()
+            }
+            Keys.onSpacePressed: {
+                control.closedByKeyboard = true
+                event.accepted = false
+            }
             Keys.onRightPressed: nextItemInFocusChain(true).forceActiveFocus(Qt.TabFocus)
             Keys.onLeftPressed: nextItemInFocusChain(false).forceActiveFocus(Qt.TabFocus)
         }

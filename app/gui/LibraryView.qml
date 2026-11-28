@@ -204,12 +204,15 @@ FocusScope {
         return item !== null && item.activeFocusOnTab === true && item.visible
     }
 
-    function restoreFocus() {
+    function restoreFocus(reason) {
+        if (reason === undefined) {
+            reason = focusReason()
+        }
         if (focusArea === "content" && (hostRows.count === 0 || selectedComputer)) {
-            focusContent(focusReason())
+            focusContent(reason)
         }
         else {
-            focusSidebar(focusReason())
+            focusSidebar(reason)
         }
     }
 
@@ -249,6 +252,9 @@ FocusScope {
         selectedUuid: library.selectedUuid
         updateToolTip: window.updateVersion !== ""
                        ? qsTr("Update available for Moonlight: Version %1").arg(window.updateVersion) : ""
+        addHostShortcutText: newHostShortcut.nativeText
+        helpShortcutText: helpShortcut.nativeText
+        settingsShortcutText: settingsShortcut.nativeText
 
         onActiveFocusChanged: {
             if (activeFocus) {
@@ -264,7 +270,7 @@ FocusScope {
         onHostDeleteRequested: {
             var rowItem = hostRows.itemAt(index)
             if (rowItem) {
-                hostDialogs.confirmDelete(library.snapshot(rowItem.row, index))
+                hostDialogs.confirmDelete(library.snapshot(rowItem.row, index), true)
             }
         }
         onAddHostRequested: library.openAddHost()

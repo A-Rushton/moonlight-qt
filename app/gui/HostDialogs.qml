@@ -69,28 +69,32 @@ Item {
         }
     }
 
-    function testNetwork(computer) {
+    function testNetwork(computer, viaKeyboard) {
         var index = indexOf(computer)
         if (index >= 0) {
             computerModel.testConnectionForComputer(index)
+            testConnectionDialog.openedFromKeyboard = viaKeyboard === true
             testConnectionDialog.open()
         }
     }
 
-    function rename(computer) {
+    function rename(computer, viaKeyboard) {
         renameDialog.uuid = computer.uuid
         renameDialog.originalName = computer.name
+        renameDialog.openedFromKeyboard = viaKeyboard === true
         renameDialog.open()
     }
 
-    function confirmDelete(computer) {
+    function confirmDelete(computer, viaKeyboard) {
         deleteDialog.uuid = computer.uuid
         deleteDialog.pcName = computer.name
+        deleteDialog.openedFromKeyboard = viaKeyboard === true
         deleteDialog.open()
     }
 
-    function showDetails(computer) {
+    function showDetails(computer, viaKeyboard) {
         detailsDialog.text = computer.details
+        detailsDialog.openedFromKeyboard = viaKeyboard === true
         detailsDialog.open()
     }
 
@@ -144,19 +148,19 @@ Item {
         }
         NavigableMenuItem {
             text: qsTr("Test network")
-            onTriggered: hostDialogs.testNetwork(hostMenu.computer)
+            onTriggered: hostDialogs.testNetwork(hostMenu.computer, triggeredByKeyboard)
         }
         NavigableMenuItem {
             text: qsTr("Rename")
-            onTriggered: hostDialogs.rename(hostMenu.computer)
+            onTriggered: hostDialogs.rename(hostMenu.computer, triggeredByKeyboard)
         }
         NavigableMenuItem {
             text: qsTr("Delete")
-            onTriggered: hostDialogs.confirmDelete(hostMenu.computer)
+            onTriggered: hostDialogs.confirmDelete(hostMenu.computer, triggeredByKeyboard)
         }
         NavigableMenuItem {
             text: qsTr("View details")
-            onTriggered: hostDialogs.showDetails(hostMenu.computer)
+            onTriggered: hostDialogs.showDetails(hostMenu.computer, triggeredByKeyboard)
         }
     }
 
@@ -200,16 +204,16 @@ Item {
         function connectionTestComplete(result, blockedPorts) {
             if (result === -1) {
                 text = qsTr("The network test could not be performed because none of Moonlight's connection testing servers were reachable from this PC. Check your Internet connection or try again later.")
-                imageSrc = "qrc:/res/baseline-warning-24px.svg"
+                iconName = "alert"
             }
             else if (result === 0) {
                 text = qsTr("This network does not appear to be blocking Moonlight. If you still have trouble connecting, check your PC's firewall settings.") + "\n\n" + qsTr("If you are trying to stream over the Internet, install the Moonlight Internet Hosting Tool on your gaming PC and run the included Internet Streaming Tester to check your gaming PC's Internet connection.")
-                imageSrc = "qrc:/res/baseline-check_circle_outline-24px.svg"
+                iconName = "check"
             }
             else {
                 text = qsTr("Your PC's current network connection seems to be blocking Moonlight. Streaming over the Internet may not work while connected to this network.") + "\n\n" + qsTr("The following network ports were blocked:") + "\n"
                 text += blockedPorts
-                imageSrc = "qrc:/res/baseline-error_outline-24px.svg"
+                iconName = "alert"
             }
 
             showSpinner = false
@@ -260,8 +264,14 @@ Item {
                 placeholderText: renameDialog.originalName
                 focus: true
 
-                Keys.onReturnPressed: renameDialog.accept()
-                Keys.onEnterPressed: renameDialog.accept()
+                Keys.onReturnPressed: {
+                    renameDialog.closedByKeyboard = true
+                    renameDialog.accept()
+                }
+                Keys.onEnterPressed: {
+                    renameDialog.closedByKeyboard = true
+                    renameDialog.accept()
+                }
                 Keys.onDownPressed: nextItemInFocusChain(true).forceActiveFocus(Qt.TabFocusReason)
             }
         }
@@ -271,7 +281,7 @@ Item {
         id: detailsDialog
 
         titleText: qsTr("Host details")
-        imageSrc: "qrc:/res/baseline-help_outline-24px.svg"
+        iconName: "help"
         standardButtons: Dialog.Ok
     }
 }

@@ -1,25 +1,25 @@
-import QtQuick 2.0
-import QtQuick.Controls 2.2
+import QtQuick 2.14
+import QtQuick.Controls 2.14
 
 import ComputerManager 1.0
 
 Item {
     function onSearchingComputer() {
-        stageLabel.text = qsTr("Establishing connection to PC...")
+        stagePanel.text = qsTr("Establishing connection to PC...")
     }
 
     function onPairing(pcName, pin) {
-        stageLabel.text = qsTr("Pairing... Please enter '%1' on %2.").arg(pin).arg(pcName)
+        stagePanel.text = qsTr("Pairing... Please enter '%1' on %2.").arg(pin).arg(pcName)
     }
 
     function onFailed(message) {
-        stageIndicator.visible = false
+        stagePanel.busy = false
         errorDialog.text = message
         errorDialog.open()
     }
 
     function onSuccess(appName) {
-        stageIndicator.visible = false
+        stagePanel.busy = false
         pairCompleteDialog.open()
     }
 
@@ -36,8 +36,6 @@ Item {
 
     StackView.onActivated: {
         if (!launcher.isExecuted()) {
-            toolBar.visible = false
-
             launcher.searchingComputer.connect(onSearchingComputer)
             launcher.pairing.connect(onPairing)
             launcher.failed.connect(onFailed)
@@ -46,24 +44,8 @@ Item {
         }
     }
 
-    Row {
-        anchors.centerIn: parent
-        spacing: 5
-        id: stageIndicator
-
-        BusyIndicator {
-            id: stageSpinner
-            running: visible
-        }
-
-        Label {
-            id: stageLabel
-            height: stageSpinner.height
-            font.pointSize: 20
-            verticalAlignment: Text.AlignVCenter
-
-            wrapMode: Text.Wrap
-        }
+    SeguePanel {
+        id: stagePanel
     }
 
     ErrorMessageDialog {

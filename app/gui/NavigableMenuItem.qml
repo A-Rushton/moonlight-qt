@@ -1,7 +1,10 @@
-import QtQuick 2.0
-import QtQuick.Controls 2.2
+import QtQuick 2.14
+import QtQuick.Controls 2.14
 
 DeskMenuItem {
+    // True while triggered() runs for Return/Enter, so handlers can tell keyboard use from a click
+    property bool triggeredByKeyboard: false
+
     // Ensure focus can't be given to an invisible item
     enabled: visible
     height: visible ? implicitHeight : 0
@@ -14,13 +17,14 @@ DeskMenuItem {
         menu.close()
     }
 
-    Keys.onReturnPressed: {
+    function triggerFromKeyboard() {
+        triggeredByKeyboard = true
         triggered()
+        triggeredByKeyboard = false
     }
 
-    Keys.onEnterPressed: {
-        triggered()
-    }
+    Keys.onReturnPressed: triggerFromKeyboard()
+    Keys.onEnterPressed: triggerFromKeyboard()
 
     Keys.onEscapePressed: {
         menu.close()

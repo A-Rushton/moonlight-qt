@@ -1,7 +1,8 @@
-import QtQuick 2.0
-import QtQuick.Controls 2.2
-import QtQuick.Window 2.2
+import QtQuick 2.14
+import QtQuick.Controls 2.14
+import QtQuick.Window 2.14
 
+import DeskTheme 1.0
 import SdlGamepadKeyNavigation 1.0
 import Session 1.0
 import SystemProperties 1.0
@@ -16,7 +17,7 @@ Item {
 
     function stageStarting(stage)
     {
-        // Update the spinner text
+        // Update the status text
         stageText = qsTr("Starting %1...").arg(stage)
     }
 
@@ -34,8 +35,7 @@ Item {
     {
         // Hide the UI contents so the user doesn't
         // see them briefly when we pop off the StackView
-        stageSpinner.visible = false
-        stageLabel.visible = false
+        stagePanel.visible = false
         hintText.visible = false
 
         // Hide the window now that streaming has begun
@@ -101,17 +101,11 @@ Item {
     }
 
     StackView.onDeactivating: {
-        // Show the toolbar again when popped off the stack
-        toolBar.visible = true
-
         // Re-enable GUI gamepad usage now
         SdlGamepadKeyNavigation.enable()
     }
 
     StackView.onActivated: {
-        // Hide the toolbar before we start loading
-        toolBar.visible = false
-
         // Hook up our signals
         session.stageStarting.connect(stageStarting)
         session.stageFailed.connect(stageFailed)
@@ -165,10 +159,10 @@ Item {
                 return;
             }
 
-            // This spinner is shown only after session.initialize() has completed
+            // The progress bar is shown only after session.initialize() has completed
             // to prevent active animations from running during decoder probing,
             // which causes re-entrant event loop livelocks with libdecor-gtk.
-            stageSpinner.visible = true
+            stagePanel.busy = true
 
             // Don't wait unless we have toasts to display
             startSessionTimer.interval = 0
@@ -180,7 +174,7 @@ Item {
                 console.warn(text)
 
                 // Show the tooltip for 3 seconds
-                var toast = Qt.createQmlObject('import QtQuick.Controls 2.2; ToolTip {}', parent, '')
+                var toast = Qt.createQmlObject('import QtQuick.Controls 2.14; ToolTip {}', parent, '')
                 toast.timeout = 3000
                 toast.text = text
                 toast.y += yOffset
@@ -200,35 +194,23 @@ Item {
         sourceComponent: Item {}
     }
 
-    Row {
-        anchors.centerIn: parent
-        spacing: 5
-
-        BusyIndicator {
-            id: stageSpinner
-            running: visible
-            visible: false
-        }
-
-        Label {
-            id: stageLabel
-            height: stageSpinner.height
-            text: stageText
-            font.pointSize: 20
-            verticalAlignment: Text.AlignVCenter
-
-            wrapMode: Text.Wrap
-        }
+    SeguePanel {
+        id: stagePanel
+        text: stageText
+        busy: false
     }
 
-    Label {
+    Text {
         id: hintText
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 50
-        anchors.horizontalCenter: parent.horizontalCenter
-        font.pointSize: 18
-        verticalAlignment: Text.AlignVCenter
-
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.leftMargin: 32
+        anchors.rightMargin: 32
+        horizontalAlignment: Text.AlignHCenter
+        font.pixelSize: Theme.fontBase
+        color: Theme.mutedStrong
         wrapMode: Text.Wrap
     }
 }

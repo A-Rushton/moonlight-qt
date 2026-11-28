@@ -1,5 +1,5 @@
-import QtQuick 2.0
-import QtQuick.Controls 2.2
+import QtQuick 2.14
+import QtQuick.Controls 2.14
 
 import ComputerManager 1.0
 import Session 1.0
@@ -34,9 +34,6 @@ Item {
     }
 
     StackView.onActivated: {
-        // Hide the toolbar before we start loading
-        toolBar.visible = false
-
         // Connect the quit completion signal
         ComputerManager.quitAppCompleted.connect(quitAppCompleted)
 
@@ -47,31 +44,13 @@ Item {
     }
 
     StackView.onDeactivating: {
-        // Show the toolbar again
-        toolBar.visible = true
-
         // Disconnect the signal
         ComputerManager.quitAppCompleted.disconnect(quitAppCompleted)
     }
 
-    Row {
-        anchors.centerIn: parent
-        spacing: 5
-
-        BusyIndicator {
-            id: stageSpinner
-            running: visible
-        }
-
-        Label {
-            id: stageLabel
-            height: stageSpinner.height
-            text: stageText
-            font.pointSize: 20
-            verticalAlignment: Text.AlignVCenter
-
-            wrapMode: Text.Wrap
-        }
+    SeguePanel {
+        id: stagePanel
+        text: stageText
     }
 
     ErrorMessageDialog {
