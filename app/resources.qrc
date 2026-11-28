@@ -18,6 +18,29 @@
         <file>res/baseline-error_outline-24px.svg</file>
         <file>res/baseline-check_circle_outline-24px.svg</file>
         <file>res/discord.svg</file>
+        <file>res/desk/alert.svg</file>
+        <file>res/desk/check.svg</file>
+        <file>res/desk/chevron-down.svg</file>
+        <file>res/desk/chevron-left.svg</file>
+        <file>res/desk/chevron-right.svg</file>
+        <file>res/desk/close.svg</file>
+        <file>res/desk/eye-off.svg</file>
+        <file>res/desk/gamepad.svg</file>
+        <file>res/desk/grid.svg</file>
+        <file>res/desk/help.svg</file>
+        <file>res/desk/list.svg</file>
+        <file>res/desk/lock.svg</file>
+        <file>res/desk/mic.svg</file>
+        <file>res/desk/monitor.svg</file>
+        <file>res/desk/moon.svg</file>
+        <file>res/desk/more.svg</file>
+        <file>res/desk/play.svg</file>
+        <file>res/desk/plus.svg</file>
+        <file>res/desk/power.svg</file>
+        <file>res/desk/sliders.svg</file>
+        <file>res/desk/stop.svg</file>
+        <file>res/desk/update.svg</file>
+        <file>res/desk/wifi.svg</file>
         <file>languages/qml_de.ts</file>
         <file>languages/qml_de.qm</file>
         <file>languages/qml_fr.ts</file>

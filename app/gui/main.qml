@@ -1,9 +1,9 @@
 import QtQuick 2.9
-import QtQuick.Controls 2.2
+import QtQuick.Controls 2.14
 import QtQuick.Layouts 1.3
 import QtQuick.Window 2.2
-import QtQuick.Controls.Material 2.2
 
+import DeskTheme 1.0
 import ComputerManager 1.0
 import AutoUpdateChecker 1.0
 import StreamingPreferences 1.0
@@ -22,19 +22,44 @@ ApplicationWindow {
     width: 1280
     height: 600
 
+    color: Theme.bg
+
+    palette.window: Theme.bg
+    palette.windowText: Theme.text
+    palette.base: Theme.raised
+    palette.alternateBase: Theme.panel
+    palette.text: Theme.text
+    palette.button: Theme.selected
+    palette.buttonText: Theme.text
+    palette.brightText: Theme.onAccent
+    palette.highlight: Theme.accent
+    palette.highlightedText: Theme.onAccent
+    palette.light: Theme.mutedStrong
+    palette.midlight: Theme.borderStrong
+    palette.mid: Theme.offline
+    palette.dark: Theme.accent
+    palette.shadow: Theme.bg
+    palette.link: Theme.link
+    palette.linkVisited: Theme.link
+    palette.toolTipBase: Theme.raised
+    palette.toolTipText: Theme.text
+
     // This function runs prior to creation of the initial StackView item
     function doEarlyInit() {
-        // Override the background color to Material 2 colors for Qt 6.5+
-        // in order to improve contrast between GFE's placeholder box art
-        // and the background of the app grid.
-        if (SystemProperties.usesMaterial3Theme) {
-            Material.background = "#303030"
-        }
-
         SdlGamepadKeyNavigation.enable()
     }
 
     Component.onCompleted: {
+        // Palette roles and colour groups that only exist on Qt 6
+        if (palette.placeholderText !== undefined) {
+            palette.placeholderText = Theme.muted
+        }
+        if (palette.disabled !== undefined) {
+            palette.disabled.text = Theme.offline
+            palette.disabled.windowText = Theme.offline
+            palette.disabled.buttonText = Theme.offline
+        }
+
         // Show the window according to the user's preferences
         if (SystemProperties.hasDesktopEnvironment) {
             if (StreamingPreferences.uiDisplayMode == StreamingPreferences.UI_MAXIMIZED) {

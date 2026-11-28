@@ -55,6 +55,7 @@
 #include "settings/streamingpreferences.h"
 #include "settings/microphonedevices.h"
 #include "gui/sdlgamepadkeynavigation.h"
+#include "gui/deskiconprovider.h"
 
 #if defined(Q_OS_WIN32)
 #define IS_UNSPECIFIED_HANDLE(x) ((x) == INVALID_HANDLE_VALUE || (x) == NULL)
@@ -970,31 +971,20 @@ int main(int argc, char *argv[])
                                                    [](QQmlEngine* qmlEngine, QJSEngine*) -> QObject* {
                                                        return StreamingPreferences::get(qmlEngine);
                                                    });
+    qmlRegisterSingletonType(QUrl("qrc:/gui/Theme.qml"), "DeskTheme", 1, 0, "Theme");
 
     // Create the identity manager on the main thread
     IdentityManager::get();
 
-    // We require the Material theme
-    QQuickStyle::setStyle("Material");
-
-    // Our icons are styled for a dark theme, so we do not allow the user to override this
-    qputenv("QT_QUICK_CONTROLS_MATERIAL_THEME", "Dark");
-
-    // These are defaults that we allow the user to override
-    if (!qEnvironmentVariableIsSet("QT_QUICK_CONTROLS_MATERIAL_ACCENT")) {
-        qputenv("QT_QUICK_CONTROLS_MATERIAL_ACCENT", "Purple");
-    }
-    if (!qEnvironmentVariableIsSet("QT_QUICK_CONTROLS_MATERIAL_VARIANT")) {
-        qputenv("QT_QUICK_CONTROLS_MATERIAL_VARIANT", "Dense");
-    }
-    if (!qEnvironmentVariableIsSet("QT_QUICK_CONTROLS_MATERIAL_PRIMARY")) {
-        // Qt 6.9 began to use a different shade of Material.Indigo when we use a dark theme
-        // (which is all the time). The new color looks washed out, so manually specify the
-        // old primary color unless the user overrides it themselves.
-        qputenv("QT_QUICK_CONTROLS_MATERIAL_PRIMARY", "#3F51B5");
-    }
+    // Our own controls are built on the customisable base style
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    QQuickStyle::setStyle("Basic");
+#else
+    QQuickStyle::setStyle("Default");
+#endif
 
     QQmlApplicationEngine engine;
+    engine.addImageProvider(QStringLiteral("deskicon"), new DeskIconProvider());
     QString initialView;
     bool hasGUI = true;
 
