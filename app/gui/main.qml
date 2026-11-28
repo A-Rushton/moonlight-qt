@@ -31,9 +31,9 @@ ApplicationWindow {
     palette.text: Theme.text
     palette.button: Theme.selected
     palette.buttonText: Theme.text
-    palette.brightText: Theme.onAccent
+    palette.brightText: Theme.accentText
     palette.highlight: Theme.accent
-    palette.highlightedText: Theme.onAccent
+    palette.highlightedText: Theme.accentText
     palette.light: Theme.mutedStrong
     palette.midlight: Theme.borderStrong
     palette.mid: Theme.offline

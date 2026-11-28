@@ -12,8 +12,7 @@ QtObject {
     readonly property color muted: "#8E9198"
     readonly property color mutedStrong: "#A4A7AE"
     readonly property color accent: "#4ADE80"
-    // An on<Upper> name parses as a signal handler, so it cannot take an initialiser
-    property color onAccent
+    readonly property color accentText: "#0E1A12"
     readonly property color offline: "#5B5E66"
     readonly property color link: "#7CC4FF"
     readonly property color danger: "#F87171"
@@ -29,6 +28,4 @@ QtObject {
 
     readonly property int controlHeight: 40
     readonly property int rowHeight: 40
-
-    Component.onCompleted: onAccent = "#0E1A12"
 }
