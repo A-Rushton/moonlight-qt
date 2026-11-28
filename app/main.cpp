@@ -54,6 +54,7 @@
 #include "streaming/session.h"
 #include "settings/streamingpreferences.h"
 #include "settings/microphonedevices.h"
+#include "settings/miclevelmonitor.h"
 #include "gui/sdlgamepadkeynavigation.h"
 #include "gui/deskiconprovider.h"
 
@@ -966,6 +967,7 @@ int main(int argc, char *argv[])
                                                           return new SdlGamepadKeyNavigation(StreamingPreferences::get(qmlEngine));
                                                       });
     qmlRegisterType<MicrophoneDevices>("MicrophoneDevices", 1, 0, "MicrophoneDevices");
+    qmlRegisterType<MicLevelMonitor>("MicLevelMonitor", 1, 0, "MicLevelMonitor");
     qmlRegisterSingletonType<StreamingPreferences>("StreamingPreferences", 1, 0,
                                                    "StreamingPreferences",
                                                    [](QQmlEngine* qmlEngine, QJSEngine*) -> QObject* {

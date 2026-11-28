@@ -217,6 +217,7 @@ SOURCES += \
     settings/mappingfetcher.cpp \
     settings/streamingpreferences.cpp \
     settings/microphonedevices.cpp \
+    settings/miclevelmonitor.cpp \
     streaming/input/abstouch.cpp \
     streaming/input/gamepad.cpp \
     streaming/input/input.cpp \
@@ -264,12 +265,14 @@ HEADERS += \
     cli/startstream.h \
     settings/streamingpreferences.h \
     settings/microphonedevices.h \
+    settings/miclevelmonitor.h \
     streaming/input/input.h \
     streaming/session.h \
     streaming/audio/micdownmix.h \
     streaming/audio/micechocanceller.h \
     streaming/audio/micencoder.h \
     streaming/audio/micfarend.h \
+    streaming/audio/miclevel.h \
     streaming/audio/micpermission.h \
     streaming/audio/micring.h \
     streaming/audio/microphone.h \

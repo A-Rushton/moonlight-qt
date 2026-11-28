@@ -10,16 +10,21 @@ APP_DIR = $$PWD/../../app
 SOURCES += \
     tst_microphone.cpp \
     $$APP_DIR/streaming/audio/micencoder.cpp \
-    $$APP_DIR/streaming/audio/micechocanceller.cpp
+    $$APP_DIR/streaming/audio/micechocanceller.cpp \
+    $$APP_DIR/settings/miclevelmonitor.cpp
 
 HEADERS += \
     $$APP_DIR/streaming/audio/micring.h \
     $$APP_DIR/streaming/audio/micdownmix.h \
     $$APP_DIR/streaming/audio/micfarend.h \
     $$APP_DIR/streaming/audio/micencoder.h \
-    $$APP_DIR/streaming/audio/micechocanceller.h
+    $$APP_DIR/streaming/audio/micechocanceller.h \
+    $$APP_DIR/streaming/audio/miclevel.h \
+    $$APP_DIR/streaming/audio/micpermission.h \
+    $$APP_DIR/streaming/audio/sdlaudiosubsystem.h \
+    $$APP_DIR/settings/miclevelmonitor.h
 
-INCLUDEPATH += $$APP_DIR/streaming/audio
+INCLUDEPATH += $$APP_DIR $$APP_DIR/streaming/audio
 
 macx {
     LIBS_DIR = $$PWD/../../libs/mac
@@ -34,6 +39,9 @@ macx {
     DEFINES += HAVE_WEBRTC_APM HAVE_WEBRTC_AEC3_FACTORY WEBRTC_POSIX WEBRTC_MAC
     INCLUDEPATH += $$APM_DIR/include
     LIBS += $$APM_DIR/lib/libwebrtc-apm.a -framework CoreFoundation
+
+    OBJECTIVE_SOURCES += $$APP_DIR/streaming/audio/micpermission_mac.mm
+    LIBS += -framework AVFoundation
     QMAKE_RPATHDIR += $$LIBS_DIR/lib
 }
 else {

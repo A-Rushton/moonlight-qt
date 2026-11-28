@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <memory>
 #include <random>
 #include <thread>
 #include <vector>
@@ -15,6 +16,8 @@
 #include "micencoder.h"
 #include "micfarend.h"
 #include "micring.h"
+#include "miclevel.h"
+#include "settings/miclevelmonitor.h"
 
 namespace {
 
@@ -26,6 +29,15 @@ std::vector<float> ramp(size_t first, size_t count)
     std::vector<float> v(count);
     for (size_t i = 0; i < count; i++) {
         v[i] = static_cast<float>(first + i);
+    }
+    return v;
+}
+
+std::vector<float> sine(float amplitude, size_t count)
+{
+    std::vector<float> v(count);
+    for (size_t i = 0; i < count; i++) {
+        v[i] = amplitude * static_cast<float>(std::sin(2.0 * M_PI * 1000.0 * i / 48000.0));
     }
     return v;
 }
@@ -560,6 +572,52 @@ private slots:
             QCOMPARE(frame, ramp(f, FRAME));
         }
         QVERIFY(!feeder.popFrame(frame.data()));
+    }
+
+    void levelOfSilenceIsZero()
+    {
+        std::vector<float> zeros(FRAME, 0.0f);
+        QCOMPARE(micLevelFromSamples(zeros.data(), int(zeros.size())), 0.0f);
+    }
+
+    void levelOfFullScaleSine()
+    {
+        auto v = sine(1.0f, FRAME);
+        QVERIFY(micLevelFromSamples(v.data(), int(v.size())) >= 0.95f);
+    }
+
+    void levelOfQuietSine()
+    {
+        auto v = sine(0.0316f, FRAME);
+        float level = micLevelFromSamples(v.data(), int(v.size()));
+        QVERIFY2(level >= 0.40f && level <= 0.55f, qPrintable(QString::number(level)));
+    }
+
+    void levelOfEmptyBufferIsZero()
+    {
+        float sample = 1.0f;
+        QCOMPARE(micLevelFromSamples(&sample, 0), 0.0f);
+        QCOMPARE(micLevelFromSamples(nullptr, 0), 0.0f);
+    }
+
+    void monitorWithMissingDeviceReportsError()
+    {
+        auto monitor = std::make_unique<MicLevelMonitor>();
+        QSignalSpy errorSpy(monitor.get(), &MicLevelMonitor::errorChanged);
+        monitor->setDevice(QStringLiteral("No Such Device"));
+        monitor->setActive(true);
+        QVERIFY(monitor->active());
+        QCoreApplication::processEvents();
+        QTest::qWait(100);
+
+        QVERIFY(!monitor->error().isEmpty());
+        QCOMPARE(errorSpy.count(), 1);
+        QCOMPARE(monitor->level(), qreal(0));
+
+        monitor->setActive(false);
+        QVERIFY(!monitor->active());
+        QCOMPARE(monitor->level(), qreal(0));
+        monitor.reset();
     }
 };
 
