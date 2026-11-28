@@ -300,9 +300,9 @@ ApplicationWindow {
         }
     }
 
-    // Pages pushed on top of the library get a slim bar to return to it
+    // Pages pushed on top of the library get a slim bar to return to it; Settings has its own
     header: Rectangle {
-        visible: stackView.depth > 1
+        visible: stackView.depth > 1 && !(stackView.currentItem instanceof SettingsView)
         implicitHeight: 56
         color: Theme.bg
 
@@ -339,13 +339,6 @@ ApplicationWindow {
                 font.weight: Font.DemiBold
                 color: Theme.text
                 elide: Label.ElideRight
-            }
-
-            Label {
-                visible: stackView.currentItem instanceof SettingsView
-                text: qsTr("Version %1").arg(SystemProperties.versionString)
-                font.pixelSize: Theme.fontSmall
-                color: Theme.muted
             }
         }
     }

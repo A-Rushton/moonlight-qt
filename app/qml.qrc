@@ -17,6 +17,15 @@
         <file>gui/AppMenu.qml</file>
         <file>gui/RunningBadge.qml</file>
         <file>gui/SettingsView.qml</file>
+        <file>gui/SettingsRow.qml</file>
+        <file>gui/SettingsVideo.qml</file>
+        <file>gui/SettingsAudio.qml</file>
+        <file>gui/SettingsMicrophone.qml</file>
+        <file>gui/SettingsInput.qml</file>
+        <file>gui/SettingsControllers.qml</file>
+        <file>gui/SettingsHost.qml</file>
+        <file>gui/SettingsInterface.qml</file>
+        <file>gui/SettingsAdvanced.qml</file>
         <file>gui/StreamSegue.qml</file>
         <file>gui/GamepadMapper.qml</file>
         <file>gui/QuitSegue.qml</file>

@@ -27,8 +27,8 @@ DeskComboBox {
         for (var i = 0; i < count; i++){
             textMetrics.text = textAt(i)
             popupMetrics.text = textAt(i)
-            textWidth = Math.max(Math.ceil(textMetrics.width), textWidth)
-            textWidth = Math.max(Math.ceil(popupMetrics.width), textWidth)
+            textWidth = Math.max(Math.ceil(textMetrics.advanceWidth), textWidth)
+            textWidth = Math.max(Math.ceil(popupMetrics.advanceWidth), textWidth)
         }
     }
 
@@ -44,6 +44,10 @@ DeskComboBox {
     popup.onAboutToHide: {
         SdlGamepadKeyNavigation.setUiNavMode(true)
     }
+
+    // Up/Down move to the neighbouring control like the rest of the page; Left/Right change the value
+    Keys.onUpPressed: nextItemInFocusChain(false).forceActiveFocus(Qt.BacktabFocusReason)
+    Keys.onDownPressed: nextItemInFocusChain(true).forceActiveFocus(Qt.TabFocusReason)
 
     Keys.onLeftPressed: {
         decrementCurrentIndex()
