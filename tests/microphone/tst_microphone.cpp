@@ -304,6 +304,112 @@ private slots:
         QVERIFY2(std::fabs(diff) <= 10.0, qPrintable(QString::number(diff)));
     }
 
+    void echoOffLeavesEcho()
+    {
+#ifndef HAVE_WEBRTC_APM
+        QSKIP("built without webrtc-audio-processing");
+#endif
+        MicEchoCanceller aec;
+        QVERIFY(aec.init({false, true}));
+        QVERIFY(aec.active());
+        aec.setStreamDelayMs(100);
+
+        constexpr size_t total = 8 * 48000;
+        constexpr size_t delay = 4800;
+        std::vector<float> farEnd(total);
+        uint32_t state = 12345;
+        for (size_t i = 0; i < total; i++) {
+            state = state * 1664525u + 1013904223u;
+            float noise = (static_cast<int32_t>(state) / 2147483648.0f);
+            float env = 0.5f + 0.5f * std::sin(2.0 * M_PI * 4.0 * i / 48000.0);
+            farEnd[i] = kFarLevel * env * noise;
+        }
+
+        double inEnergy = 0, outEnergy = 0;
+        const size_t measureFrom = total - 3 * 48000;
+        for (size_t pos = 0; pos + FRAME <= total; pos += FRAME) {
+            std::vector<float> cap(FRAME);
+            for (size_t i = 0; i < FRAME; i++) {
+                size_t n = pos + i;
+                cap[i] = n >= delay ? 0.5f * farEnd[n - delay] : 0.0f;
+            }
+            std::vector<float> in = cap;
+            aec.processReverse(farEnd.data() + pos);
+            aec.processCapture(cap.data());
+            if (pos >= measureFrom) {
+                for (size_t i = 0; i < FRAME; i++) {
+                    inEnergy += static_cast<double>(in[i]) * in[i];
+                    outEnergy += static_cast<double>(cap[i]) * cap[i];
+                }
+            }
+        }
+        double erle = 10.0 * std::log10(inEnergy / std::max(outEnergy, 1e-20));
+        qInfo("ERLE with echo cancellation off %.2f dB", erle);
+        QVERIFY2(erle < 6.0, qPrintable(QString::number(erle)));
+    }
+
+    void noiseSuppressionOffKeepsNoise()
+    {
+#ifndef HAVE_WEBRTC_APM
+        QSKIP("built without webrtc-audio-processing");
+#endif
+        auto lastSecondEnergy = [](bool noiseSuppression) {
+            MicEchoCanceller aec;
+            if (!aec.init({true, noiseSuppression})) {
+                return -1.0;
+            }
+            aec.setStreamDelayMs(100);
+
+            constexpr size_t total = 3 * 48000;
+            std::vector<float> silence(FRAME, 0.0f);
+            std::mt19937 rng(777);
+            std::normal_distribution<float> dist(0.0f, 0.01f);
+            double energy = 0;
+            for (size_t pos = 0; pos + FRAME <= total; pos += FRAME) {
+                std::vector<float> cap(FRAME);
+                for (float& s : cap) {
+                    s = dist(rng);
+                }
+                aec.processReverse(silence.data());
+                aec.processCapture(cap.data());
+                if (pos >= total - 48000) {
+                    for (float s : cap) {
+                        energy += static_cast<double>(s) * s;
+                    }
+                }
+            }
+            return energy;
+        };
+
+        double nsOn = lastSecondEnergy(true);
+        double nsOff = lastSecondEnergy(false);
+        QVERIFY(nsOn >= 0.0 && nsOff >= 0.0);
+        double diff = 10.0 * std::log10(nsOff / std::max(nsOn, 1e-20));
+        qInfo("noise energy with NS off vs on: +%.2f dB", diff);
+        QVERIFY2(diff >= 6.0, qPrintable(QString::number(diff)));
+    }
+
+    void processReverseSafeWhenEchoOff()
+    {
+#ifndef HAVE_WEBRTC_APM
+        QSKIP("built without webrtc-audio-processing");
+#endif
+        MicEchoCanceller aec;
+        QVERIFY(aec.init({false, true}));
+        std::vector<float> far(FRAME, 0.3f);
+        for (int i = 0; i < 100; i++) {
+            aec.processReverse(far.data());
+        }
+        std::vector<float> cap(FRAME);
+        for (size_t i = 0; i < FRAME; i++) {
+            cap[i] = 0.1f * std::sin(0.05f * i);
+        }
+        aec.processCapture(cap.data());
+        for (float s : cap) {
+            QVERIFY(std::isfinite(s));
+        }
+    }
+
     void uninitialisedPassesThrough()
     {
         MicEchoCanceller aec;

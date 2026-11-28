@@ -12,7 +12,14 @@ public:
     MicEchoCanceller(const MicEchoCanceller&) = delete;
     MicEchoCanceller& operator=(const MicEchoCanceller&) = delete;
 
-    bool init();
+    struct Options
+    {
+        bool echoCancellation = true;
+        bool noiseSuppression = true;
+    };
+
+    bool init() { return init(Options()); }
+    bool init(const Options& options);
     bool active() const;
 
     // Far-end reference: exactly 480 mono 48 kHz samples.

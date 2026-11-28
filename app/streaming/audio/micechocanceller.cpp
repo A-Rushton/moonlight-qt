@@ -52,14 +52,14 @@ struct MicEchoCanceller::Impl
 MicEchoCanceller::MicEchoCanceller() = default;
 MicEchoCanceller::~MicEchoCanceller() = default;
 
-bool MicEchoCanceller::init()
+bool MicEchoCanceller::init(const Options& options)
 {
     auto impl = std::make_unique<Impl>();
 
     webrtc::AudioProcessing::Config config;
-    config.echo_canceller.enabled = true;
+    config.echo_canceller.enabled = options.echoCancellation;
     config.echo_canceller.mobile_mode = false;
-    config.noise_suppression.enabled = true;
+    config.noise_suppression.enabled = options.noiseSuppression;
     config.noise_suppression.level = webrtc::AudioProcessing::Config::NoiseSuppression::kModerate;
     config.gain_controller2.enabled = true;
     config.gain_controller2.adaptive_digital.enabled = true;
@@ -68,7 +68,9 @@ bool MicEchoCanceller::init()
     webrtc::AudioProcessingBuilder builder;
     builder.SetConfig(config);
 #ifdef HAVE_WEBRTC_AEC3_FACTORY
-    builder.SetEchoControlFactory(std::make_unique<webrtc::EchoCanceller3Factory>(makeEchoConfig()));
+    if (options.echoCancellation) {
+        builder.SetEchoControlFactory(std::make_unique<webrtc::EchoCanceller3Factory>(makeEchoConfig()));
+    }
 #endif
     impl->apm = builder.Create();
     if (!impl->apm) {
@@ -152,7 +154,7 @@ struct MicEchoCanceller::Impl {};
 MicEchoCanceller::MicEchoCanceller() = default;
 MicEchoCanceller::~MicEchoCanceller() = default;
 
-bool MicEchoCanceller::init()
+bool MicEchoCanceller::init(const Options&)
 {
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
                 "Echo cancellation not built in");

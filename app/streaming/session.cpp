@@ -1013,7 +1013,9 @@ void Session::startMicrophone()
         return;
     }
 
-    auto microphone = std::make_unique<MicrophoneStream>(m_Preferences->microphoneDevice);
+    auto microphone = std::make_unique<MicrophoneStream>(
+        m_Preferences->microphoneDevice,
+        MicEchoCanceller::Options{m_Preferences->micEchoCancellation, m_Preferences->micNoiseSuppression});
     microphone->setMessageHandler([this](const QString& text, bool launchWarning) {
         postMicMessage(text, launchWarning);
     });

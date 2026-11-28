@@ -62,8 +62,9 @@ const char* micStatusOverlayText(MicStatus status)
     return nullptr;
 }
 
-MicrophoneStream::MicrophoneStream(QString preferredDevice)
+MicrophoneStream::MicrophoneStream(QString preferredDevice, MicEchoCanceller::Options options)
     : m_PreferredDevice(std::move(preferredDevice)),
+      m_EchoOptions(options),
       m_Status(MicStatus::Unavailable),
       m_UsingFallback(false),
       m_Ring(kRingSamples),
@@ -120,7 +121,7 @@ void MicrophoneStream::initEchoCancellerLocked()
 
     // The encoder thread only touches the canceller once m_EchoCancelActive
     // publishes it
-    if (m_EchoCanceller.init()) {
+    if (m_EchoCanceller.init(m_EchoOptions)) {
         // A hint AEC3 may ignore; its own delay estimator tracks the real delay
         m_EchoCanceller.setStreamDelayMs(kInitialEchoDelayMs);
         m_EchoCancelActive.store(true, std::memory_order_release);

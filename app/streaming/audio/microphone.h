@@ -30,7 +30,7 @@ public:
     // warnings from transient status changes.
     using MessageHandler = std::function<void(const QString& text, bool launchWarning)>;
 
-    explicit MicrophoneStream(QString preferredDevice);
+    MicrophoneStream(QString preferredDevice, MicEchoCanceller::Options options);
     ~MicrophoneStream();
 
     MicrophoneStream(const MicrophoneStream&) = delete;
@@ -76,6 +76,7 @@ private:
     void notify(const QString& text, bool launchWarning);
 
     const QString m_PreferredDevice;
+    const MicEchoCanceller::Options m_EchoOptions;
     MessageHandler m_MessageHandler;
 
     std::atomic<MicStatus> m_Status;
