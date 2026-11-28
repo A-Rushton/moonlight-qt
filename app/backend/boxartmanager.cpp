@@ -20,32 +20,44 @@ BoxArtManager::BoxArtManager(QObject *parent) :
 }
 
 QString
-BoxArtManager::getFilePathForBoxArt(NvComputer* computer, int appId)
+BoxArtManager::getFilePathForBoxArt(const QString& computerUuid, int appId)
 {
     QDir dir = m_BoxArtDir;
 
     // Create the cache directory if it did not already exist
-    if (!dir.exists(computer->uuid)) {
-        dir.mkdir(computer->uuid);
+    if (!dir.exists(computerUuid)) {
+        dir.mkdir(computerUuid);
     }
 
     // Change to this computer's box art cache folder
-    dir.cd(computer->uuid);
+    dir.cd(computerUuid);
 
     // Try to open the cached file
     return dir.filePath(QString::number(appId) + ".png");
 }
 
+// Copies everything it needs from the host up front, because the host can be deleted
+// while the fetch is running. The NvComputer pointer is only passed back as an identifier.
 class NetworkBoxArtLoadTask : public QObject, public QRunnable
 {
     Q_OBJECT
 
 public:
     NetworkBoxArtLoadTask(BoxArtManager* boxArtManager, NvComputer* computer, NvApp& app)
-        : m_Bam(boxArtManager),
-          m_Computer(computer),
+        : m_Computer(computer),
           m_App(app)
     {
+        {
+            QReadLocker lock(&computer->lock);
+            m_Address = computer->activeAddress;
+            m_HttpsPort = computer->activeHttpsPort;
+            m_ServerCert = computer->serverCert;
+            m_UseTrueUid = !computer->isNvidiaServerSoftware;
+            m_Uuid = computer->uuid;
+        }
+
+        m_CachePath = boxArtManager->getFilePathForBoxArt(m_Uuid, m_App.id);
+
         connect(this, &NetworkBoxArtLoadTask::boxArtFetchCompleted,
                 boxArtManager, &BoxArtManager::handleBoxArtLoadComplete);
     }
@@ -56,23 +68,61 @@ signals:
 private:
     void run()
     {
-        QUrl image = m_Bam->loadBoxArtFromNetwork(m_Computer, m_App.id);
+        QUrl image = loadFromNetwork();
         if (image.isEmpty()) {
             // Give it another shot if it fails once
-            image = m_Bam->loadBoxArtFromNetwork(m_Computer, m_App.id);
+            image = loadFromNetwork();
         }
         emit boxArtFetchCompleted(m_Computer, m_App, image);
     }
 
-    BoxArtManager* m_Bam;
+    QUrl loadFromNetwork()
+    {
+        if (m_Address.isNull()) {
+            return QUrl();
+        }
+
+        NvHTTP http(m_Address, m_HttpsPort, m_ServerCert, m_UseTrueUid);
+
+        QImage image;
+        try {
+            image = http.getBoxArt(m_App.id);
+        } catch (...) {}
+
+        // Cache the box art on disk if it loaded
+        if (!image.isNull()) {
+            if (image.save(m_CachePath)) {
+                return QUrl::fromLocalFile(m_CachePath);
+            }
+            else {
+                // A failed save() may leave a zero byte file. Make sure that's removed.
+                QFile(m_CachePath).remove();
+            }
+        }
+
+        return QUrl();
+    }
+
     NvComputer* m_Computer;
     NvApp m_App;
+    NvAddress m_Address;
+    uint16_t m_HttpsPort;
+    QSslCertificate m_ServerCert;
+    bool m_UseTrueUid;
+    QString m_Uuid;
+    QString m_CachePath;
 };
 
 QUrl BoxArtManager::loadBoxArt(NvComputer* computer, NvApp& app)
 {
     // Try to open the cached file if it exists and contains data
-    QFile cacheFile(getFilePathForBoxArt(computer, app.id));
+    QString uuid;
+    {
+        QReadLocker lock(&computer->lock);
+        uuid = computer->uuid;
+    }
+
+    QFile cacheFile(getFilePathForBoxArt(uuid, app.id));
     if (cacheFile.exists() && cacheFile.size() > 0) {
         return QUrl::fromLocalFile(cacheFile.fileName());
     }
@@ -102,30 +152,6 @@ void BoxArtManager::handleBoxArtLoadComplete(NvComputer* computer, NvApp app, QU
     if (!image.isEmpty()) {
         emit boxArtLoadComplete(computer, app, image);
     }
-}
-
-QUrl BoxArtManager::loadBoxArtFromNetwork(NvComputer* computer, int appId)
-{
-    NvHTTP http(computer);
-
-    QString cachePath = getFilePathForBoxArt(computer, appId);
-    QImage image;
-    try {
-        image = http.getBoxArt(appId);
-    } catch (...) {}
-
-    // Cache the box art on disk if it loaded
-    if (!image.isNull()) {
-        if (image.save(cachePath)) {
-            return QUrl::fromLocalFile(cachePath);
-        }
-        else {
-            // A failed save() may leave a zero byte file. Make sure that's removed.
-            QFile(cachePath).remove();
-        }
-    }
-
-    return QUrl();
 }
 
 #include "boxartmanager.moc"

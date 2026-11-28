@@ -33,11 +33,8 @@ private slots:
     handleBoxArtLoadComplete(NvComputer* computer, NvApp app, QUrl image);
 
 private:
-    QUrl
-    loadBoxArtFromNetwork(NvComputer* computer, int appId);
-
     QString
-    getFilePathForBoxArt(NvComputer* computer, int appId);
+    getFilePathForBoxArt(const QString& computerUuid, int appId);
 
     QDir m_BoxArtDir;
     QThreadPool m_ThreadPool;
